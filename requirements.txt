@@ -1,0 +1,8 @@
+Flask
+mysql-connector-python
+bcrypt
+openpyxl
+captcha
+matplotlib
+xhtml2pdf
+python-dotenv
