@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block titulo %}Entretenimiento · EntreCOL+{% endblock %}
+{% block contenido %}
+<style>
+  .tab-btn { padding: 9px 18px; border-radius: 8px; text-decoration: none; font-weight: 600;
+             background: #EAF1FA; color: #1F4E79; transition: all .15s; }
+  .tab-btn.activo { background: #1F4E79; color: #fff; }
+  .tabla-cat { width: 100%; border-collapse: collapse; }
+  .tabla-cat th { background: #1F4E79; color: #fff; text-align: left; padding: 11px 12px; }
+  .tabla-cat td { border-bottom: 1px solid #d9e0ea; padding: 10px 12px; }
+  .pag-btn { padding: 7px 14px; border: 1px solid #d9e0ea; border-radius: 8px; text-decoration: none; }
+</style>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+  <div>
+    <h1>🎬 Catálogo de Entretenimiento</h1>
+    <p class="subtitulo" style="margin:0;">Consulta películas y libros cargados en el sistema ({{ total }} registros).</p>
+  </div>
+  <a href="{{ url_for('menu') }}" style="text-decoration:none; font-weight:600;">← Volver al menú</a>
+</div>
+
+<div class="tarjeta">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+    <div style="display:flex; gap:8px;">
+      <a href="{{ url_for('entretenimiento', tab='peliculas') }}" class="tab-btn {{ 'activo' if tab == 'peliculas' else '' }}">
+        🎥 Películas
+      </a>
+      <a href="{{ url_for('entretenimiento', tab='libros') }}" class="tab-btn {{ 'activo' if tab == 'libros' else '' }}">
+        📚 Libros
+      </a>
+    </div>
+
+    <form method="get" action="{{ url_for('entretenimiento') }}" style="display:flex; gap:8px; flex:1; max-width:380px;">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      <input type="text" name="q" value="{{ q }}" placeholder="Buscar por título o autor..." style="padding:9px 12px;">
+      <button type="submit" class="btn" style="margin:0; width:auto; padding:9px 18px;">Buscar</button>
+    </form>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table class="tabla-cat">
+      <thead>
+        <tr>
+          {% if tab == 'peliculas' %}
+            <th>ID</th>
+            <th>Título</th>
+            <th>Año</th>
+            <th>Géneros</th>
+          {% else %}
+            <th>Título</th>
+            <th>Autor(es)</th>
+            <th>Editorial</th>
+            <th>Rating</th>
+            <th>Páginas</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr>
+          {% if tab == 'peliculas' %}
+            <td>{{ f.id_pelicula }}</td>
+            <td style="font-weight:600;">{{ f.titulo }}</td>
+            <td>{{ f.anio or '—' }}</td>
+            <td>{{ f.generos }}</td>
+          {% else %}
+            <td style="font-weight:600;">{{ f.titulo }}</td>
+            <td>{{ f.autores }}</td>
+            <td>{{ f.editorial }}</td>
+            <td>⭐ {{ f.rating_promedio }}</td>
+            <td>{{ f.num_paginas or '—' }}</td>
+          {% endif %}
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="padding:18px; text-align:center; color:#6b7280;">No se encontraron resultados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:18px; font-size:.9rem;">
+    <span style="color:#6b7280;">Página {{ pagina }} de {{ total_paginas }}</span>
+    <div style="display:flex; gap:8px;">
+      {% if pagina > 1 %}
+        <a href="{{ url_for('entretenimiento', tab=tab, q=q, pagina=pagina-1) }}" class="pag-btn">← Anterior</a>
+      {% endif %}
+      {% if pagina < total_paginas %}
+        <a href="{{ url_for('entretenimiento', tab=tab, q=q, pagina=pagina+1) }}" class="pag-btn">Siguiente →</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% if es_pdf %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; color: #1f2937; font-size: 12px; }
+    h1 { color: #1F4E79; border-bottom: 2px solid #1F4E79; padding-bottom: 6px; font-size: 18px; }
+    .meta { color: #6b7280; margin-bottom: 16px; font-size: 11px; }
+    .grafica { text-align: center; margin: 16px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    th { background: #1F4E79; color: #fff; text-align: left; padding: 8px; }
+    td { border-bottom: 1px solid #d9e0ea; padding: 7px 8px; }
+    tr:nth-child(even) td { background: #f4f6fa; }
+  </style>
+</head>
+<body>
+  <h1>EntreCOL+ · {{ titulo }}</h1>
+  <div class="meta">Generado por: {{ session.nombre }} ({{ session.rol }})</div>
+  {% if grafica %}
+    <div class="grafica"><img src="data:image/png;base64,{{ grafica }}" style="width: 520px;"></div>
+  {% endif %}
+  <table>
+    <thead><tr>{% for col in columnas %}<th>{{ col }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for fila in filas %}
+        <tr>{% for c in claves %}<td>{{ fila[c] }}</td>{% endfor %}</tr>
+      {% else %}
+        <tr><td colspan="{{ columnas|length }}">No hay registros para este reporte.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
+{% else %}
+{% extends "base.html" %}
+{% block titulo %}Reportes · EntreCOL+{% endblock %}
+{% block contenido %}
+<style>
+  .rep-btn { padding: 10px 16px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: .9rem;
+             background: #fff; color: #1F4E79; border: 1.5px solid #1F4E79; transition: all .15s; }
+  .rep-btn:hover { background: #EAF1FA; }
+  .rep-btn.activo { background: #1F4E79; color: #fff; }
+  .btn-pdf { background: #b42318; color: #fff; padding: 9px 16px; border-radius: 8px;
+             text-decoration: none; font-weight: 600; font-size: .9rem; }
+  .btn-pdf:hover { background: #911c13; }
+  .tabla-rep { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  .tabla-rep th { background: #1F4E79; color: #fff; text-align: left; padding: 11px 12px; }
+  .tabla-rep td { border-bottom: 1px solid #d9e0ea; padding: 10px 12px; }
+</style>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+  <div>
+    <h1>📊 Centro de Reportes</h1>
+    <p class="subtitulo" style="margin:0;">Consulta indicadores gráficos y exporta en formato PDF.</p>
+  </div>
+  <a href="{{ url_for('menu') }}" style="text-decoration:none; font-weight:600;">← Volver al menú</a>
+</div>
+
+<div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:24px;">
+  {% set lista_rep = [
+    (1, '1. Empleados por dependencia'),
+    (2, '2. Películas por género'),
+    (3, '3. Libros por editorial'),
+    (4, '4. Top libros por rating'),
+    (5, '5. Nómina por periodo')
+  ] %}
+  {% for rid, rnom in lista_rep %}
+    <a href="{{ url_for('ver_reporte', num=rid) }}" class="rep-btn {{ 'activo' if reporte_id == rid else '' }}">
+      {{ rnom }}
+    </a>
+  {% endfor %}
+</div>
+
+{% if reporte_id %}
+<div class="tarjeta">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+    <h2 style="color:#1F4E79;">{{ titulo }}</h2>
+    <div style="display:flex; gap:10px; align-items:center;">
+      {% if reporte_id in [2, 3, 4] %}
+      <form method="get" action="{{ url_for('ver_reporte', num=reporte_id) }}" style="display:flex; gap:6px; align-items:center;">
+        <label style="margin:0; font-size:.85rem;">Top:</label>
+        <select name="limite" onchange="this.form.submit()" style="padding:7px 10px; border-radius:8px; border:1.5px solid #d9e0ea;">
+          {% for n in [5, 10, 15, 20] %}
+            <option value="{{ n }}" {% if limite == n %}selected{% endif %}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      {% endif %}
+
+      {% if 'reportes:exportar' in session.permisos %}
+      <a href="{{ url_for('ver_reporte', num=reporte_id, limite=limite, formato='pdf') }}" target="_blank" class="btn-pdf">
+        📄 Exportar PDF
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if grafica %}
+  <div style="text-align:center; margin:20px 0; padding:12px; background:#fbfcfe; border:1px solid #d9e0ea; border-radius:12px;">
+    <img src="data:image/png;base64,{{ grafica }}" alt="Gráfica" style="max-width:100%; height:auto;">
+  </div>
+  {% endif %}
+
+  <div style="overflow-x:auto;">
+    <table class="tabla-rep">
+      <thead>
+        <tr>
+          {% for col in columnas %}<th>{{ col }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in filas %}
+        <tr>
+          {% for c in claves %}<td>{{ fila[c] }}</td>{% endfor %}
+        </tr>
+        {% else %}
+        <tr><td colspan="{{ columnas|length }}" style="padding:16px; text-align:center; color:#6b7280;">No hay datos registrados para este reporte.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="tarjeta centro" style="padding:48px 20px;">
+  <div style="font-size:2.8rem; margin-bottom:10px;">📈</div>
+  <h3>Selecciona un reporte arriba</h3>
+  <p class="subtitulo" style="margin:0;">Podrás visualizar la gráfica estadística, la tabla de resultados y descargar el informe en PDF.</p>
+</div>
+{% endif %}
+{% endblock %}
+{% endif %}

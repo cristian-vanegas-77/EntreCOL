@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titulo %}Iniciar sesión · EntreCOL+{% endblock %}
+{% block pantalla %}
+<div class="pantalla-login">
+  <div class="marca-grande"><span class="logo">E</span> EntreCOL+</div>
+  <p class="lema">Sistema de nómina y entretenimiento</p>
+
+  <div class="tarjeta login">
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for categoria, texto in mensajes %}<div class="msg {{ categoria }}">{{ texto }}</div>{% endfor %}
+    {% endwith %}
+
+    {% if paso == 1 %}
+      <h2>Iniciar sesión</h2>
+      <p class="ayuda">Ingresa tus credenciales para continuar</p>
+      <form method="post" action="{{ url_for('login') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <label for="username">Usuario</label>
+        <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+        <label for="clave">Contraseña</label>
+        <input type="password" id="clave" name="clave" autocomplete="current-password" required>
+        <button class="btn" type="submit">Continuar</button>
+      </form>
+    {% else %}
+      <h2>Verificación</h2>
+      <p class="ayuda">Escribe el texto de la imagen para terminar de ingresar</p>
+      <div class="captcha-caja">
+        <img src="{{ url_for('captcha_png', t=t) }}" alt="Captcha" width="220" height="80">
+      </div>
+      <form method="post" action="{{ url_for('verificar') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <label for="captcha">Texto de la imagen</label>
+        <input type="text" id="captcha" name="captcha" class="captcha" autocomplete="off" maxlength="5" autofocus required>
+        <button class="btn" type="submit">Ingresar</button>
+      </form>
+      <a class="enlace-chico" href="{{ url_for('verificar') }}">↻ Cambiar imagen</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block pie %}{% endblock %}

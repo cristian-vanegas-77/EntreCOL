@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block titulo %}Menú · EntreCOL+{% endblock %}
+{% block contenido %}
+{% set iconos = {'empleados': '👥', 'nomina': '💰', 'entretenimiento': '🎬', 'cargas': '📤',
+                 'reportes': '📊', 'usuarios': '🔐', 'auditoria': '🛡️'} %}
+<h1>Hola, {{ session.nombre }}</h1>
+<p class="subtitulo">Estos son los módulos disponibles para tu rol.</p>
+
+<div class="rejilla">
+  {% for m in modulos %}
+    {% if m.endpoint %}
+    <a class="modulo" href="{{ url_for(m.endpoint) }}">
+      <div class="icono">{{ iconos.get(m.modulo, '📁') }}</div>
+      <div><h3>{{ m.titulo }}</h3><p>{{ m.descr }}</p></div>
+    </a>
+    {% else %}
+    <div class="modulo pronto">
+      <div class="icono">{{ iconos.get(m.modulo, '📁') }}</div>
+      <div><h3>{{ m.titulo }}</h3><p>{{ m.descr }}</p><span class="etiqueta">Próximamente</span></div>
+    </div>
+    {% endif %}
+  {% else %}
+    <div class="tarjeta">Tu rol no tiene módulos habilitados.</div>
+  {% endfor %}
+</div>
+{% endblock %}

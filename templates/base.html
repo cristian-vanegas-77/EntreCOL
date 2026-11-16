@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}EntreCOL+{% endblock %}</title>
+  <style>
+    :root {
+      --azul: #1F4E79; --azul-osc: #163a5a; --azul-claro: #EAF1FA; --acento: #2E6DA4;
+      --texto: #1f2937; --suave: #6b7280; --borde: #d9e0ea; --fondo: #f4f6fa;
+      --rojo: #b42318; --rojo-fondo: #fef0ee; --verde: #1e6b3a; --verde-fondo: #e8f5ec;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; background: var(--fondo);
+           color: var(--texto); font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
+
+    /* ---------- barra superior ---------- */
+    .barra { background: linear-gradient(90deg, var(--azul-osc), var(--azul)); color: #fff; height: 64px;
+             padding: 0 28px; display: flex; align-items: center; justify-content: space-between;
+             box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+    .marca { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.25rem; }
+    .logo { width: 36px; height: 36px; border-radius: 10px; background: #fff; color: var(--azul);
+            display: grid; place-items: center; font-weight: 800; font-size: 1.1rem; }
+    .usuario { display: flex; align-items: center; gap: 12px; font-size: .92rem; }
+    .chip { background: rgba(255,255,255,.18); padding: 4px 12px; border-radius: 999px; font-size: .78rem; letter-spacing: .3px; }
+    .btn-salir { background: transparent; border: 1px solid rgba(255,255,255,.7); color: #fff; padding: 6px 14px;
+                 border-radius: 8px; cursor: pointer; font-size: .85rem; transition: background .15s; }
+    .btn-salir:hover { background: rgba(255,255,255,.15); }
+
+    /* ---------- contenido ---------- */
+    .contenedor { width: 100%; max-width: 1040px; margin: 36px auto; padding: 0 20px; flex: 1; }
+    h1, h2 { margin: 0 0 6px; }
+    .subtitulo { color: var(--suave); margin: 0 0 26px; }
+    .tarjeta { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 6px 24px rgba(22,58,90,.10); }
+    .centro { text-align: center; }
+    a { color: var(--acento); }
+    footer { text-align: center; color: var(--suave); font-size: .8rem; padding: 18px; }
+
+    /* ---------- mensajes ---------- */
+    .msg { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px;
+           margin-bottom: 16px; font-size: .92rem; }
+    .msg.error { background: var(--rojo-fondo); color: var(--rojo); border: 1px solid #f7c9c3; }
+    .msg.ok { background: var(--verde-fondo); color: var(--verde); border: 1px solid #bfe3ca; }
+
+    /* ---------- formularios ---------- */
+    label { display: block; margin: 16px 0 6px; font-weight: 600; font-size: .9rem; }
+    input[type=text], input[type=password] { width: 100%; padding: 12px 14px; border: 1.5px solid var(--borde);
+        border-radius: 10px; font-size: 1rem; background: #fbfcfe; transition: border-color .15s, box-shadow .15s; }
+    input:focus { outline: none; border-color: var(--acento); box-shadow: 0 0 0 4px rgba(46,109,164,.15); background: #fff; }
+    .btn { margin-top: 22px; width: 100%; padding: 13px; background: var(--azul); color: #fff; border: 0;
+           border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background .15s, transform .05s; }
+    .btn:hover { background: var(--azul-osc); }
+    .btn:active { transform: translateY(1px); }
+
+    /* ---------- pantalla de login ---------- */
+    .pantalla-login { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 32px 16px; background: linear-gradient(135deg, #163a5a 0%, #1F4E79 55%, #2e6da4 100%); }
+    .marca-grande { display: flex; align-items: center; gap: 12px; color: #fff; font-size: 1.9rem; font-weight: 700; margin-bottom: 8px; }
+    .marca-grande .logo { width: 52px; height: 52px; font-size: 1.6rem; border-radius: 14px; }
+    .lema { color: rgba(255,255,255,.8); margin: 0 0 26px; font-size: .95rem; }
+    .login { width: 100%; max-width: 400px; }
+    .login h2 { font-size: 1.35rem; text-align: center; }
+    .login .ayuda { color: var(--suave); text-align: center; font-size: .9rem; margin: 4px 0 8px; }
+    .captcha-caja { display: flex; justify-content: center; margin: 20px 0 6px; }
+    .captcha-caja img { border: 1.5px solid var(--borde); border-radius: 10px; background: #fff; }
+    input.captcha { text-align: center; font-size: 1.4rem; letter-spacing: 6px; text-transform: uppercase; }
+    .enlace-chico { display: block; text-align: center; margin-top: 16px; font-size: .88rem; }
+
+    /* ---------- menú ---------- */
+    .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+    .modulo { background: #fff; border-radius: 16px; padding: 22px; display: flex; gap: 16px; align-items: flex-start;
+              box-shadow: 0 4px 16px rgba(22,58,90,.08); border: 1px solid transparent;
+              transition: transform .15s, box-shadow .15s, border-color .15s; text-decoration: none; color: inherit; }
+    a.modulo:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(22,58,90,.16); border-color: var(--acento); }
+    .icono { flex: none; width: 52px; height: 52px; border-radius: 14px; background: var(--azul-claro);
+             display: grid; place-items: center; font-size: 1.6rem; }
+    .modulo h3 { margin: 2px 0 4px; font-size: 1.05rem; }
+    .modulo p { margin: 0; color: var(--suave); font-size: .88rem; line-height: 1.4; }
+    .modulo.pronto { opacity: .85; }
+    .etiqueta { display: inline-block; margin-top: 10px; font-size: .72rem; background: #eef0f4; color: var(--suave);
+                padding: 3px 10px; border-radius: 999px; }
+
+    @media (max-width: 560px) {
+      .barra { padding: 0 14px; } .usuario .chip { display: none; } .contenedor { margin-top: 22px; }
+    }
+  </style>
+</head>
+<body>
+  {% if session.usuario_id %}
+  <header class="barra">
+    <div class="marca"><span class="logo">E</span> EntreCOL+</div>
+    <div class="usuario">
+      <span>{{ session.nombre }}</span>
+      <span class="chip">{{ session.rol }}</span>
+      <form method="post" action="{{ url_for('logout') }}" style="margin:0">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button type="submit" class="btn-salir">Cerrar sesión</button>
+      </form>
+    </div>
+  </header>
+  {% endif %}
+
+  {% block pantalla %}
+  <main class="contenedor">
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for categoria, texto in mensajes %}<div class="msg {{ categoria }}">{{ texto }}</div>{% endfor %}
+    {% endwith %}
+    {% block contenido %}{% endblock %}
+  </main>
+  {% endblock %}
+
+  {% block pie %}<footer>EntreCOL+ · Proyecto de Bases de Datos 2026-2</footer>{% endblock %}
+</body>
+</html>

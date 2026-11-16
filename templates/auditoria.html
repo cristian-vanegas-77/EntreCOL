@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block titulo %}Auditoría · EntreCOL+{% endblock %}
+{% block contenido %}
+<style>
+  .tabla-aud { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  .tabla-aud th { background: #1F4E79; color: #fff; text-align: left; padding: 11px 12px; }
+  .tabla-aud td { border-bottom: 1px solid #d9e0ea; padding: 10px 12px; }
+  .badge-accion { background: #EAF1FA; color: #1F4E79; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: .8rem; }
+</style>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+  <div>
+    <h1>🛡️ Registro de Auditoría</h1>
+    <p class="subtitulo" style="margin:0;">Últimas 100 acciones registradas en la plataforma.</p>
+  </div>
+  <a href="{{ url_for('menu') }}" style="text-decoration:none; font-weight:600;">← Volver al menú</a>
+</div>
+
+<div class="tarjeta" style="overflow-x:auto;">
+  <table class="tabla-aud">
+    <thead>
+      <tr>
+        <th>Fecha y Hora</th>
+        <th>Usuario</th>
+        <th>Acción</th>
+        <th>Tabla</th>
+        <th>Detalle</th>
+        <th>IP</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in registros %}
+      <tr>
+        <td style="white-space:nowrap;">{{ r.fecha_hora }}</td>
+        <td style="font-weight:600;">{{ r.usuario }}</td>
+        <td><span class="badge-accion">{{ r.accion }}</span></td>
+        <td>{{ r.tabla_afectada or '—' }}</td>
+        <td>{{ r.detalle or '—' }}</td>
+        <td style="color:#6b7280;">{{ r.ip or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="padding:18px; text-align:center; color:#6b7280;">No hay eventos de auditoría aún.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

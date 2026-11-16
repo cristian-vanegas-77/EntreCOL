@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block titulo %}Error {{ codigo }} · EntreCOL+{% endblock %}
+{% block contenido %}
+<div class="tarjeta centro" style="max-width:480px;margin:40px auto">
+  <div style="font-size:3rem">{% if codigo == 403 %}🚫{% else %}⚠️{% endif %}</div>
+  <h2>Error {{ codigo }}</h2>
+  <p class="subtitulo">{{ mensaje }}</p>
+  <a href="{{ url_for('inicio') }}">← Volver al inicio</a>
+</div>
+{% endblock %}
