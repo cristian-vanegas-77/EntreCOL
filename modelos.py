@@ -782,4 +782,4 @@ def reporte_5_entretenimiento(anio_f1=None, anio_f2=None, top_n=10, num_generos=
         cantidad_n_generos=len(peliculas_n_generos),
         freq_peliculas_genero=freq_peliculas_genero,
         freq_libros_anio=freq_libros_anio,
-    )
+    ) 

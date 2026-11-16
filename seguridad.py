@@ -133,4 +133,4 @@ if __name__ == "__main__":
             print("Usa al menos 8 caracteres.")
         else:
             crear_usuario("admin", clave, "Administrador", "admin@entrecol.com", "ADMINISTRADOR")
-            print("Usuario admin creado.")
+            print("Usuario admin creado.") 

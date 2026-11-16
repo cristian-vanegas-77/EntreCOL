@@ -752,4 +752,4 @@ def cargas_panel():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)      # debug=True solo para desarrollo
+    app.run(debug=True)      # debug=True solo para desarrollo 

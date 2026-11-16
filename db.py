@@ -61,4 +61,4 @@ if __name__ == "__main__":
     roles = consultar("SELECT id_rol, nombre FROM rol")
     print(f"Conexion OK. Roles encontrados: {len(roles)}")
     for r in roles:
-        print(" -", r["id_rol"], r["nombre"])
+        print(" -", r["id_rol"], r["nombre"]) 
