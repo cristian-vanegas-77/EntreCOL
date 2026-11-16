@@ -150,6 +150,14 @@ def cambiar_estado_usuario(id_usuario, activo):
     ejecutar("UPDATE usuario SET activo = %s, intentos_fallidos = 0 WHERE id_usuario = %s", (activo, id_usuario))
 
 
+def cambiar_rol_usuario(id_usuario, id_rol):
+    ejecutar("UPDATE usuario SET id_rol = %s WHERE id_usuario = %s", (id_rol, id_usuario))
+
+
+def actualizar_password_usuario(id_usuario, password_hash):
+    ejecutar("UPDATE usuario SET password_hash = %s, intentos_fallidos = 0 WHERE id_usuario = %s", (password_hash, id_usuario))
+
+
 def listar_auditoria(limite=100):
     return consultar(
         "SELECT a.id_auditoria, a.fecha_hora, COALESCE(u.username, 'Sistema/Anónimo') AS usuario, "
@@ -170,6 +178,18 @@ def listar_periodos():
         "FROM periodo_nomina p "
         "JOIN parametro_anual pa ON pa.id_parametro = p.id_parametro "
         "ORDER BY pa.anio DESC, p.mes DESC"
+    )
+
+
+def listar_parametros_anuales():
+    return consultar("SELECT id_parametro, anio, smmlv, aux_transporte FROM parametro_anual ORDER BY anio DESC")
+
+
+def crear_periodo(id_parametro, mes, fecha_inicio, fecha_fin):
+    ejecutar(
+        "INSERT INTO periodo_nomina (id_parametro, mes, fecha_inicio, fecha_fin, estado) "
+        "VALUES (%s, %s, %s, %s, 'ABIERTO')",
+        (id_parametro, mes, fecha_inicio, fecha_fin),
     )
 
 
@@ -258,7 +278,6 @@ def liquidar_periodo(id_periodo, id_usuario):
     pct_salud = float(param["pct_salud_empleado"]) / 100.0
     pct_pension = float(param["pct_pension_empleado"]) / 100.0
 
-    # Si se recalcula el periodo, limpia la liquidación anterior
     ejecutar("DELETE FROM liquidacion WHERE id_periodo = %s", (id_periodo,))
 
     empleados = consultar("SELECT codigo, sueldo FROM empleado")
@@ -278,16 +297,13 @@ def liquidar_periodo(id_periodo, id_usuario):
         dias_trabajados = max(0, 30 - dias_novedad)
 
         movimientos = []
-        # 1. Sueldo días laborados
         val_sueldo = round(valor_dia * dias_trabajados, 2)
         movimientos.append((conceptos["SUELDO"], dias_trabajados, val_sueldo))
 
-        # 2. Auxilio de transporte (si gana hasta 2 SMMLV, proporcional a días trabajados)
         val_aux = round((aux_trans / 30.0) * dias_trabajados, 2) if sueldo <= (2 * smmlv) else 0.0
         if val_aux > 0:
             movimientos.append((conceptos["AUXILIO_TRANSPORTE"], dias_trabajados, val_aux))
 
-        # 3. Novedades (VACACIONES / INCAPACIDAD)
         val_novedades = 0.0
         for nov in novedades:
             dias_nov = int(nov["dias"])
@@ -297,7 +313,6 @@ def liquidar_periodo(id_periodo, id_usuario):
             id_conc = conceptos.get(nov["nombre"], conceptos["BONIFICACION"])
             movimientos.append((id_conc, dias_nov, monto))
 
-        # 4. Deducciones de ley (sobre ingreso base sin auxilio de transporte)
         ibc = val_sueldo + val_novedades
         val_salud = round(ibc * pct_salud, 2)
         val_pension = round(ibc * pct_pension, 2)
@@ -382,61 +397,389 @@ def listar_libros(q="", pagina=1, por_pagina=15):
 
 
 # ======================================================================
-#  CONSULTAS PARA LOS 5 REPORTES (TODAS DEVUELVEN 'etiqueta' + VALORES)
+#  REPORTES OFICIALES DEL PROYECTO
 # ======================================================================
-def reporte_1_empleados_dependencia():
-    """Reporte 1: Cantidad de empleados y masa salarial por dependencia."""
-    return consultar(
+def reporte_1_nomina_listados(orden_nombre="ASC"):
+    """Reporte 1: Nómina por empresa, dependencia y cargo (nombres ASC/DESC)."""
+    sentido = "DESC" if str(orden_nombre).upper() == "DESC" else "ASC"
+
+    por_dependencia = consultar(
         "SELECT d.nombre AS etiqueta, COUNT(e.codigo) AS cantidad, COALESCE(SUM(e.sueldo), 0) AS total_sueldo "
         "FROM dependencia d "
         "LEFT JOIN cargo c ON c.id_dependencia = d.id_dependencia "
         "LEFT JOIN empleado e ON e.id_cargo = c.id_cargo "
-        "GROUP BY d.id_dependencia, d.nombre ORDER BY cantidad DESC"
+        "GROUP BY d.id_dependencia, d.nombre "
+        "ORDER BY d.nombre ASC"
+    )
+
+    por_cargo_dep = consultar(
+        "SELECT d.nombre AS dependencia, c.nombre AS cargo, COUNT(e.codigo) AS cantidad "
+        "FROM dependencia d "
+        "JOIN cargo c ON c.id_dependencia = d.id_dependencia "
+        "LEFT JOIN empleado e ON e.id_cargo = c.id_cargo "
+        "GROUP BY d.id_dependencia, d.nombre, c.id_cargo, c.nombre "
+        "ORDER BY d.nombre ASC, c.nombre ASC"
+    )
+
+    empleados_empresa = consultar(
+        "SELECT e.codigo, e.nombre_completo, d.nombre AS dependencia, c.nombre AS cargo, e.sueldo "
+        "FROM empleado e "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN dependencia d ON d.id_dependencia = c.id_dependencia "
+        f"ORDER BY e.nombre_completo {sentido}, e.codigo ASC"
+    )
+
+    empleados_por_dep = consultar(
+        "SELECT e.codigo, e.nombre_completo, d.nombre AS dependencia, c.nombre AS cargo, e.sueldo "
+        "FROM empleado e "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN dependencia d ON d.id_dependencia = c.id_dependencia "
+        f"ORDER BY d.nombre ASC, e.nombre_completo {sentido}, e.codigo ASC"
+    )
+
+    empleados_por_dep_cargo = consultar(
+        "SELECT e.codigo, e.nombre_completo, d.nombre AS dependencia, c.nombre AS cargo, e.sueldo "
+        "FROM empleado e "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN dependencia d ON d.id_dependencia = c.id_dependencia "
+        f"ORDER BY d.nombre ASC, c.nombre ASC, e.nombre_completo {sentido}, e.codigo ASC"
+    )
+
+    return dict(
+        sentido=sentido,
+        total_empleados=len(empleados_empresa),
+        por_dependencia=por_dependencia,
+        por_cargo_dep=por_cargo_dep,
+        empleados_empresa=empleados_empresa,
+        empleados_por_dep=empleados_por_dep,
+        empleados_por_dep_cargo=empleados_por_dep_cargo,
     )
 
 
-def reporte_2_peliculas_genero(limite=10):
-    """Reporte 2: Top N géneros con más películas registradas."""
+def reporte_2_informacion_personal():
+    """Reporte 2: Ficha completa de información personal, seguridad social y discriminación de novedades."""
     return consultar(
+        "SELECT "
+        "  CONCAT(e.nombre_completo, ' (', e.codigo, ')') AS empleado_codigo, "
+        "  d.nombre AS dependencia, "
+        "  c.nombre AS cargo, "
+        "  DATE_FORMAT(e.fecha_ingreso, '%d/%m/%Y') AS fecha_ingreso, "
+        "  eps.nombre AS eps, "
+        "  CONCAT(pen.nombre, ' ($', FORMAT(ROUND(e.sueldo * 0.04, 0), 0), ')') AS aporte_pension, "
+        "  CONCAT('$', FORMAT(e.sueldo, 0)) AS salario, "
+        "  COALESCE("
+        "    ("
+        "      SELECT GROUP_CONCAT("
+        "        CONCAT(tn.nombre, ': ', DATE_FORMAT(n.fecha_inicio, '%d/%m/%Y'), ' al ', "
+        "               DATE_FORMAT(n.fecha_fin, '%d/%m/%Y'), ' (', DATEDIFF(n.fecha_fin, n.fecha_inicio) + 1, ' d)') "
+        "        ORDER BY n.fecha_inicio SEPARATOR ' | '"
+        "      ) "
+        "      FROM novedad n "
+        "      JOIN tipo_novedad tn ON tn.id_tipo_novedad = n.id_tipo_novedad "
+        "      WHERE n.codigo = e.codigo"
+        "    ), "
+        "    'Sin novedades'"
+        "  ) AS novedades "
+        "FROM empleado e "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN dependencia d ON d.id_dependencia = c.id_dependencia "
+        "JOIN eps ON eps.id_eps = e.id_eps "
+        "JOIN pension pen ON pen.id_pension = e.id_pension "
+        "ORDER BY e.nombre_completo ASC"
+    )
+
+
+def reporte_3_salud_pension(orden_nombre="ASC"):
+    """Reporte 3: Frecuencias por EPS/Pensión, comparativas por dependencia y listas por cargo (nombres ASC/DESC)."""
+    sentido = "DESC" if str(orden_nombre).upper() == "DESC" else "ASC"
+
+    freq_eps = consultar(
+        "SELECT eps.nombre AS etiqueta, COUNT(e.codigo) AS cantidad "
+        "FROM eps LEFT JOIN empleado e ON e.id_eps = eps.id_eps "
+        "GROUP BY eps.id_eps, eps.nombre ORDER BY eps.nombre ASC"
+    )
+
+    freq_pension = consultar(
+        "SELECT pen.nombre AS etiqueta, COUNT(e.codigo) AS cantidad "
+        "FROM pension pen LEFT JOIN empleado e ON e.id_pension = pen.id_pension "
+        "GROUP BY pen.id_pension, pen.nombre ORDER BY pen.nombre ASC"
+    )
+
+    eps_por_dep = consultar(
+        "SELECT d.nombre AS dependencia, eps.nombre AS eps, COUNT(e.codigo) AS cantidad "
+        "FROM empleado e "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN dependencia d ON d.id_dependencia = c.id_dependencia "
+        "JOIN eps ON eps.id_eps = e.id_eps "
+        "GROUP BY d.id_dependencia, d.nombre, eps.id_eps, eps.nombre "
+        "ORDER BY d.nombre ASC, eps.nombre ASC"
+    )
+
+    pension_por_dep = consultar(
+        "SELECT d.nombre AS dependencia, pen.nombre AS pension, COUNT(e.codigo) AS cantidad "
+        "FROM empleado e "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN dependencia d ON d.id_dependencia = c.id_dependencia "
+        "JOIN pension pen ON pen.id_pension = e.id_pension "
+        "GROUP BY d.id_dependencia, d.nombre, pen.id_pension, pen.nombre "
+        "ORDER BY d.nombre ASC, pen.nombre ASC"
+    )
+
+    conteo_cargo_eps = consultar(
+        "SELECT c.nombre AS cargo, eps.nombre AS eps, COUNT(e.codigo) AS cantidad "
+        "FROM empleado e "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN eps ON eps.id_eps = e.id_eps "
+        "GROUP BY c.id_cargo, c.nombre, eps.id_eps, eps.nombre "
+        "ORDER BY c.nombre ASC, eps.nombre ASC"
+    )
+
+    lista_cargo_eps = consultar(
+        "SELECT c.nombre AS cargo, eps.nombre AS eps, e.codigo, e.nombre_completo, d.nombre AS dependencia "
+        "FROM empleado e "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN dependencia d ON d.id_dependencia = c.id_dependencia "
+        "JOIN eps ON eps.id_eps = e.id_eps "
+        f"ORDER BY c.nombre ASC, eps.nombre ASC, e.nombre_completo {sentido}, e.codigo ASC"
+    )
+
+    conteo_cargo_pension = consultar(
+        "SELECT c.nombre AS cargo, pen.nombre AS pension, COUNT(e.codigo) AS cantidad "
+        "FROM empleado e "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN pension pen ON pen.id_pension = e.id_pension "
+        "GROUP BY c.id_cargo, c.nombre, pen.id_pension, pen.nombre "
+        "ORDER BY c.nombre ASC, pen.nombre ASC"
+    )
+
+    lista_cargo_pension = consultar(
+        "SELECT c.nombre AS cargo, pen.nombre AS pension, e.codigo, e.nombre_completo, d.nombre AS dependencia "
+        "FROM empleado e "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN dependencia d ON d.id_dependencia = c.id_dependencia "
+        "JOIN pension pen ON pen.id_pension = e.id_pension "
+        f"ORDER BY c.nombre ASC, pen.nombre ASC, e.nombre_completo {sentido}, e.codigo ASC"
+    )
+
+    return dict(
+        sentido=sentido,
+        freq_eps=freq_eps,
+        freq_pension=freq_pension,
+        eps_por_dep=eps_por_dep,
+        pension_por_dep=pension_por_dep,
+        conteo_cargo_eps=conteo_cargo_eps,
+        lista_cargo_eps=lista_cargo_eps,
+        conteo_cargo_pension=conteo_cargo_pension,
+        lista_cargo_pension=lista_cargo_pension,
+    )
+
+
+def reporte_4_novedades(f1_str=None, f2_str=None):
+    """Reporte 4: Empleados con novedades en un rango F1 vs F2 (MM/AAAA) y cantidad por dependencia y cargo."""
+    import re
+    from datetime import date
+
+    patron = re.compile(r"^(0[1-9]|1[0-2])/(\d{4})$")
+
+    if not (f1_str and patron.match(f1_str) and f2_str and patron.match(f2_str)):
+        rango = consultar(
+            "SELECT DATE_FORMAT(MIN(fecha_inicio), '%m/%Y') AS f1, "
+            "DATE_FORMAT(MAX(fecha_fin), '%m/%Y') AS f2 FROM novedad",
+            uno=True,
+        )
+        hoy_ym = date.today().strftime("%m/%Y")
+        f1_str = rango["f1"] if rango and rango["f1"] else hoy_ym
+        f2_str = rango["f2"] if rango and rango["f2"] else hoy_ym
+
+    m1, y1 = f1_str.split("/")
+    m2, y2 = f2_str.split("/")
+
+    if (int(y1), int(m1)) > (int(y2), int(m2)):
+        f1_str, f2_str = f2_str, f1_str
+        m1, y1, m2, y2 = m2, y2, m1, y1
+
+    fecha_desde = f"{y1}-{m1}-01"
+    fecha_hasta_base = f"{y2}-{m2}-01"
+
+    lista_empleados = consultar(
+        "SELECT e.codigo, e.nombre_completo, d.nombre AS dependencia, c.nombre AS cargo, "
+        "tn.nombre AS tipo_novedad, "
+        "DATE_FORMAT(n.fecha_inicio, '%d/%m/%Y') AS fecha_inicio, "
+        "DATE_FORMAT(n.fecha_fin, '%d/%m/%Y') AS fecha_fin, "
+        "(DATEDIFF(n.fecha_fin, n.fecha_inicio) + 1) AS dias "
+        "FROM novedad n "
+        "JOIN empleado e ON e.codigo = n.codigo "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN dependencia d ON d.id_dependencia = c.id_dependencia "
+        "JOIN tipo_novedad tn ON tn.id_tipo_novedad = n.id_tipo_novedad "
+        "WHERE n.fecha_inicio <= LAST_DAY(%s) AND n.fecha_fin >= %s "
+        "ORDER BY d.nombre ASC, c.nombre ASC, e.nombre_completo ASC, n.fecha_inicio ASC",
+        (fecha_hasta_base, fecha_desde),
+    )
+
+    por_dep_cargo = consultar(
+        "SELECT d.nombre AS dependencia, c.nombre AS cargo, "
+        "COUNT(DISTINCT n.codigo) AS cantidad_empleados, "
+        "COUNT(n.id_novedad) AS total_novedades "
+        "FROM novedad n "
+        "JOIN empleado e ON e.codigo = n.codigo "
+        "JOIN cargo c ON c.id_cargo = e.id_cargo "
+        "JOIN dependencia d ON d.id_dependencia = c.id_dependencia "
+        "WHERE n.fecha_inicio <= LAST_DAY(%s) AND n.fecha_fin >= %s "
+        "GROUP BY d.id_dependencia, d.nombre, c.id_cargo, c.nombre "
+        "ORDER BY d.nombre ASC, c.nombre ASC",
+        (fecha_hasta_base, fecha_desde),
+    )
+
+    empleados_unicos = len({r["codigo"] for r in lista_empleados})
+
+    return dict(
+        f1=f1_str,
+        f2=f2_str,
+        empleados_unicos=empleados_unicos,
+        lista_empleados=lista_empleados,
+        por_dep_cargo=por_dep_cargo,
+    )
+
+
+def reporte_5_entretenimiento(anio_f1=None, anio_f2=None, top_n=10, num_generos=2, orden_nombre="ASC"):
+    """Reporte 5: Base-Entretenimiento (películas por género F1..F2, Top N libros, Top 5 mejor/peor por año,
+    películas con N géneros y frecuencias de películas por género y libros por año F1..F2)."""
+    sentido = "DESC" if str(orden_nombre).upper() == "DESC" else "ASC"
+    top_n = max(1, min(100, int(top_n or 10)))
+    num_generos = max(1, min(15, int(num_generos or 2)))
+
+    rango_p = consultar("SELECT MIN(anio) AS min_a, MAX(anio) AS max_a FROM pelicula WHERE anio IS NOT NULL", uno=True)
+    rango_l = consultar(
+        "SELECT MIN(YEAR(fecha_publicacion)) AS min_a, MAX(YEAR(fecha_publicacion)) AS max_a "
+        "FROM libro WHERE fecha_publicacion IS NOT NULL",
+        uno=True,
+    )
+    anios_min = [x for x in (rango_p["min_a"] if rango_p else None, rango_l["min_a"] if rango_l else None) if x]
+    anios_max = [x for x in (rango_p["max_a"] if rango_p else None, rango_l["max_a"] if rango_l else None) if x]
+
+    min_default = min(anios_min) if anios_min else 1990
+    max_default = max(anios_max) if anios_max else 2026
+
+    try:
+        f1 = int(anio_f1) if anio_f1 else min_default
+    except (ValueError, TypeError):
+        f1 = min_default
+    try:
+        f2 = int(anio_f2) if anio_f2 else max_default
+    except (ValueError, TypeError):
+        f2 = max_default
+
+    if f1 > f2:
+        f1, f2 = f2, f1
+
+    # a. Listado de películas por género entre F1 y F2 (nombres ASC/DESC)
+    peliculas_genero = consultar(
+        "SELECT g.nombre AS genero, p.id_pelicula, p.titulo, p.anio "
+        "FROM pelicula p "
+        "JOIN pelicula_genero pg ON pg.id_pelicula = p.id_pelicula "
+        "JOIN genero g ON g.id_genero = pg.id_genero "
+        "WHERE p.anio BETWEEN %s AND %s "
+        f"ORDER BY g.nombre ASC, p.titulo {sentido}, p.anio ASC",
+        (f1, f2),
+    )
+
+    # b. Listado del Top N libros con mejor rating (reordenados por título ASC/DESC)
+    top_n_libros = consultar(
+        "SELECT * FROM ("
+        "  SELECT l.id_libro, l.titulo, e.nombre AS editorial, "
+        "  COALESCE(GROUP_CONCAT(DISTINCT a.nombre SEPARATOR ', '), 'Desconocido') AS autores, "
+        "  YEAR(l.fecha_publicacion) AS anio, l.rating_promedio, l.num_calificaciones "
+        "  FROM libro l "
+        "  JOIN editorial e ON e.id_editorial = l.id_editorial "
+        "  LEFT JOIN libro_autor la ON la.id_libro = l.id_libro "
+        "  LEFT JOIN autor a ON a.id_autor = la.id_autor "
+        "  WHERE l.rating_promedio IS NOT NULL "
+        "  GROUP BY l.id_libro, l.titulo, e.nombre, l.fecha_publicacion, l.rating_promedio, l.num_calificaciones "
+        "  ORDER BY l.rating_promedio DESC, l.num_calificaciones DESC "
+        "  LIMIT %s"
+        f") sub ORDER BY sub.titulo {sentido}",
+        (top_n,),
+    )
+
+    # c. Top 5 libros mejor rating por año y Top 5 peor rating por año (nombres ASC/DESC)
+    libros_con_anio = consultar(
+        "SELECT l.id_libro, l.titulo, YEAR(l.fecha_publicacion) AS anio, "
+        "l.rating_promedio, l.num_calificaciones, "
+        "COALESCE(GROUP_CONCAT(DISTINCT a.nombre SEPARATOR ', '), 'Desconocido') AS autores "
+        "FROM libro l "
+        "LEFT JOIN libro_autor la ON la.id_libro = l.id_libro "
+        "LEFT JOIN autor a ON a.id_autor = la.id_autor "
+        "WHERE l.fecha_publicacion IS NOT NULL AND l.rating_promedio IS NOT NULL "
+        "GROUP BY l.id_libro, l.titulo, l.fecha_publicacion, l.rating_promedio, l.num_calificaciones"
+    )
+    por_anio = {}
+    for lib in libros_con_anio:
+        por_anio.setdefault(lib["anio"], []).append(lib)
+
+    reverso_titulo = sentido == "DESC"
+    top5_mejor_anio = []
+    top5_peor_anio = []
+    for anio in sorted(por_anio.keys()):
+        grupo = por_anio[anio]
+        mejores = sorted(
+            grupo,
+            key=lambda x: (-float(x["rating_promedio"]), -(x["num_calificaciones"] or 0), x["titulo"]),
+        )[:5]
+        mejores.sort(key=lambda x: x["titulo"].lower(), reverse=reverso_titulo)
+        top5_mejor_anio.extend(mejores)
+
+        peores = sorted(
+            grupo,
+            key=lambda x: (float(x["rating_promedio"]), -(x["num_calificaciones"] or 0), x["titulo"]),
+        )[:5]
+        peores.sort(key=lambda x: x["titulo"].lower(), reverse=reverso_titulo)
+        top5_peor_anio.extend(peores)
+
+    # d. Listado y cantidad de películas, con sus géneros, que tienen exactamente N géneros (nombres ASC/DESC)
+    peliculas_n_generos = consultar(
+        "SELECT p.id_pelicula, p.titulo, p.anio, COUNT(g.id_genero) AS total_generos, "
+        "GROUP_CONCAT(g.nombre ORDER BY g.nombre SEPARATOR ', ') AS generos "
+        "FROM pelicula p "
+        "JOIN pelicula_genero pg ON pg.id_pelicula = p.id_pelicula "
+        "JOIN genero g ON g.id_genero = pg.id_genero "
+        "GROUP BY p.id_pelicula, p.titulo, p.anio "
+        "HAVING COUNT(g.id_genero) = %s "
+        f"ORDER BY p.titulo {sentido}, p.anio ASC",
+        (num_generos,),
+    )
+
+    # e. Frecuencia de películas por género
+    freq_peliculas_genero = consultar(
         "SELECT g.nombre AS etiqueta, COUNT(pg.id_pelicula) AS cantidad "
         "FROM genero g "
-        "JOIN pelicula_genero pg ON pg.id_genero = g.id_genero "
-        "GROUP BY g.id_genero, g.nombre ORDER BY cantidad DESC LIMIT %s",
-        (int(limite),),
+        "LEFT JOIN pelicula_genero pg ON pg.id_genero = g.id_genero "
+        "GROUP BY g.id_genero, g.nombre "
+        "ORDER BY cantidad DESC, g.nombre ASC"
     )
 
-
-def reporte_3_libros_editorial(limite=10):
-    """Reporte 3: Top N editoriales con más libros y su rating promedio."""
-    return consultar(
-        "SELECT e.nombre AS etiqueta, COUNT(l.id_libro) AS cantidad, "
-        "ROUND(AVG(l.rating_promedio), 2) AS rating_promedio "
-        "FROM editorial e "
-        "JOIN libro l ON l.id_editorial = e.id_editorial "
-        "GROUP BY e.id_editorial, e.nombre ORDER BY cantidad DESC LIMIT %s",
-        (int(limite),),
+    # f. Frecuencia de libros por año de publicación entre F1 y F2
+    freq_libros_anio = consultar(
+        "SELECT CAST(YEAR(fecha_publicacion) AS CHAR) AS etiqueta, COUNT(*) AS cantidad "
+        "FROM libro "
+        "WHERE fecha_publicacion IS NOT NULL AND YEAR(fecha_publicacion) BETWEEN %s AND %s "
+        "GROUP BY YEAR(fecha_publicacion) "
+        "ORDER BY YEAR(fecha_publicacion) ASC",
+        (f1, f2),
     )
 
-
-def reporte_4_top_libros_rating(limite=10):
-    """Reporte 4: Top N libros mejor calificados (con mínimo 1000 calificaciones)."""
-    return consultar(
-        "SELECT LEFT(titulo, 35) AS etiqueta, rating_promedio AS valor, num_calificaciones "
-        "FROM libro WHERE num_calificaciones >= 1000 "
-        "ORDER BY rating_promedio DESC, num_calificaciones DESC LIMIT %s",
-        (int(limite),),
-    )
-
-
-def reporte_5_nomina_por_periodo():
-    """Reporte 5: Total devengado, deducciones y neto pagado por periodo liquidado."""
-    return consultar(
-        "SELECT CONCAT(pa.anio, '-', LPAD(p.mes, 2, '0')) AS etiqueta, "
-        "COALESCE(SUM(l.total_devengado), 0) AS devengado, "
-        "COALESCE(SUM(l.total_deducciones), 0) AS deducciones, "
-        "COALESCE(SUM(l.neto_pagar), 0) AS neto "
-        "FROM periodo_nomina p "
-        "JOIN parametro_anual pa ON pa.id_parametro = p.id_parametro "
-        "LEFT JOIN liquidacion l ON l.id_periodo = p.id_periodo "
-        "GROUP BY p.id_periodo, pa.anio, p.mes ORDER BY pa.anio ASC, p.mes ASC"
+    return dict(
+        f1=f1,
+        f2=f2,
+        top_n=top_n,
+        num_generos=num_generos,
+        sentido=sentido,
+        peliculas_genero=peliculas_genero,
+        top_n_libros=top_n_libros,
+        top5_mejor_anio=top5_mejor_anio,
+        top5_peor_anio=top5_peor_anio,
+        peliculas_n_generos=peliculas_n_generos,
+        cantidad_n_generos=len(peliculas_n_generos),
+        freq_peliculas_genero=freq_peliculas_genero,
+        freq_libros_anio=freq_libros_anio,
     )

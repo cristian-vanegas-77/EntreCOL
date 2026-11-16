@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block titulo %}{{ 'Nuevo' if modo == 'nuevo' else 'Editar' }} Empleado · EntreCOL+{% endblock %}
+{% block contenido %}
+<style>
+  .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .grid-form label { margin: 0 0 6px; }
+  .grid-form input, .grid-form select { width: 100%; padding: 10px 12px; border: 1.5px solid #d9e0ea; border-radius: 10px; background: #fbfcfe; font-size: .95rem; }
+</style>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+  <div>
+    <h1>{{ '➕ Registrar Empleado' if modo == 'nuevo' else '✏️ Editar Empleado #' ~ emp.codigo }}</h1>
+    <p class="subtitulo" style="margin:0;">Completa la información laboral y de seguridad social.</p>
+  </div>
+  <a href="{{ url_for('empleados_lista') }}" style="text-decoration:none; font-weight:600;">← Volver al listado</a>
+</div>
+
+<div class="tarjeta" style="max-width:780px; margin:0 auto;">
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+
+    <div class="grid-form">
+      <div>
+        <label for="codigo">Código Personal</label>
+        <input type="number" id="codigo" name="codigo" value="{{ emp.codigo or '' }}"
+               {% if modo == 'editar' %}disabled{% else %}required min="1"{% endif %}>
+      </div>
+
+      <div>
+        <label for="nombre">Nombre Completo</label>
+        <input type="text" id="nombre" name="nombre" value="{{ emp.nombre or '' }}" required>
+      </div>
+
+      <div>
+        <label for="fecha_ingreso">Fecha de Ingreso</label>
+        <input type="date" id="fecha_ingreso" name="fecha_ingreso" value="{{ emp.fecha_ingreso or '' }}" required>
+      </div>
+
+      <div>
+        <label for="sueldo">Sueldo Base ($)</label>
+        <input type="number" id="sueldo" name="sueldo" step="0.01" min="0" value="{{ emp.sueldo or '' }}" required>
+      </div>
+
+      <div>
+        <label for="id_cargo">Cargo y Dependencia</label>
+        <select id="id_cargo" name="id_cargo" required>
+          {% for c in cats.cargos %}
+            <option value="{{ c.id_cargo }}" {% if emp.id_cargo == c.id_cargo %}selected{% endif %}>
+              {{ c.dependencia }} — {{ c.nombre }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="id_eps">EPS</label>
+        <select id="id_eps" name="id_eps" required>
+          {% for x in cats.eps %}
+            <option value="{{ x.id_eps }}" {% if emp.id_eps == x.id_eps %}selected{% endif %}>{{ x.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="id_arl">ARL</label>
+        <select id="id_arl" name="id_arl" required>
+          {% for x in cats.arl %}
+            <option value="{{ x.id_arl }}" {% if emp.id_arl == x.id_arl %}selected{% endif %}>{{ x.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="id_pension">Fondo de Pensión</label>
+        <select id="id_pension" name="id_pension" required>
+          {% for x in cats.pensiones %}
+            <option value="{{ x.id_pension }}" {% if emp.id_pension == x.id_pension %}selected{% endif %}>{{ x.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:12px; margin-top:24px;">
+      <button type="submit" class="btn" style="margin:0; flex:1;">
+        {{ 'Guardar Empleado' if modo == 'nuevo' else 'Actualizar Datos' }}
+      </button>
+      <a href="{{ url_for('empleados_lista') }}"
+         style="padding:13px 20px; border:1.5px solid #d9e0ea; border-radius:10px; text-decoration:none; font-weight:600; color:#4b5563;">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

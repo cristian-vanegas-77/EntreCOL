@@ -61,3 +61,39 @@ def html_a_pdf(html_renderizado):
         return None
     pdf_buffer.seek(0)
     return pdf_buffer.read()
+
+def generar_grafica_barras_comparativas(filas, campo_grupo, campo_serie, campo_valor, titulo, xlabel="", ylabel=""):
+    """Dibuja barras agrupadas/comparativas (ej. dependencia vs cargo) y devuelve Base64."""
+    fig, ax = plt.subplots(figsize=(8, 4.2))
+
+    if not filas:
+        ax.text(0.5, 0.5, "Sin datos disponibles para graficar", ha="center", va="center", fontsize=12)
+        ax.axis("off")
+    else:
+        grupos = list(dict.fromkeys(f[campo_grupo] for f in filas))
+        series = list(dict.fromkeys(f[campo_serie] for f in filas))
+        mapa = {(f[campo_grupo], f[campo_serie]): f[campo_valor] for f in filas}
+
+        n_series = max(1, len(series))
+        ancho = 0.8 / n_series
+        indices = list(range(len(grupos)))
+
+        for i, s in enumerate(series):
+            desplazamiento = [x - 0.4 + (i + 0.5) * ancho for x in indices]
+            valores = [mapa.get((g, s), 0) for g in grupos]
+            ax.bar(desplazamiento, valores, width=ancho, label=s)
+
+        ax.set_title(titulo, fontsize=11, fontweight="bold", pad=12)
+        ax.set_xlabel(xlabel, fontsize=9)
+        ax.set_ylabel(ylabel, fontsize=9)
+        ax.set_xticks(indices)
+        ax.set_xticklabels(grupos, rotation=25, ha="right", fontsize=8)
+        ax.grid(axis="y", linestyle="--", alpha=0.5)
+        ax.legend(fontsize=7, ncol=2, loc="upper right")
+
+    plt.tight_layout()
+    buffer = io.BytesIO()
+    fig.savefig(buffer, format="png", dpi=120)
+    plt.close(fig)
+    buffer.seek(0)
+    return base64.b64encode(buffer.read()).decode("utf-8")

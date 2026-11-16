@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block titulo %}Cargas de Archivos · EntreCOL+{% endblock %}
+{% block contenido %}
+<style>
+  .cards-carga { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 24px; }
+  .card-upload { border: 1.5px solid #d9e0ea; border-radius: 12px; padding: 18px; background: #fbfcfe; display: flex; flex-direction: column; justify-content: space-between; }
+  .card-upload h3 { color: #1F4E79; margin-bottom: 6px; font-size: 1.05rem; }
+  .card-upload p { font-size: .86rem; color: #4b5563; margin-bottom: 14px; }
+  .input-file { width: 100%; padding: 8px; border: 1px dashed #93b4d7; border-radius: 8px; background: #fff; font-size: .85rem; margin-bottom: 12px; }
+  .btn-subir { width: 100%; padding: 10px; background: #1F4E79; color: #fff; border: 0; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .btn-subir:hover { background: #163a5a; }
+  .tabla-cargas { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .tabla-cargas th { background: #1F4E79; color: #fff; text-align: left; padding: 11px 10px; }
+  .tabla-cargas td { border-bottom: 1px solid #d9e0ea; padding: 10px; }
+  .pill-ok { background: #e8f5ec; color: #1e6b3a; padding: 3px 9px; border-radius: 999px; font-size: .78rem; font-weight: 600; }
+  .pill-warn { background: #fef7e6; color: #9a5b00; padding: 3px 9px; border-radius: 999px; font-size: .78rem; font-weight: 600; }
+  .pill-err { background: #fef0ee; color: #b42318; padding: 3px 9px; border-radius: 999px; font-size: .78rem; font-weight: 600; }
+</style>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+  <div>
+    <h1>📤 Carga Masiva de Archivos</h1>
+    <p class="subtitulo" style="margin:0;">Importa información de nómina, películas y libros directamente a MySQL.</p>
+  </div>
+  <a href="{{ url_for('menu') }}" style="text-decoration:none; font-weight:600;">← Volver al menú</a>
+</div>
+
+{% if 'cargas:crear' in session.permisos %}
+<div class="cards-carga">
+  <!-- 1. Excel Nómina -->
+  <div class="card-upload">
+    <div>
+      <h3>📊 1. Nómina y Empleados (.xlsx)</h3>
+      <p>Actualiza empleados, cargos, seguridad social y novedades desde el libro de Excel.</p>
+    </div>
+    <form method="post" action="{{ url_for('cargas_panel') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="tipo" value="NOMINA">
+      <input type="file" name="archivo" accept=".xlsx" class="input-file" required>
+      <button type="submit" class="btn-subir">Subir Excel de Nómina</button>
+    </form>
+  </div>
+
+  <!-- 2. DAT Películas -->
+  <div class="card-upload">
+    <div>
+      <h3>🎬 2. Catálogo Películas (.dat)</h3>
+      <p>Importa películas y géneros en formato delimitado <code>id::título (año)::géneros</code>.</p>
+    </div>
+    <form method="post" action="{{ url_for('cargas_panel') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="tipo" value="PELICULAS">
+      <input type="file" name="archivo" accept=".dat,.txt" class="input-file" required>
+      <button type="submit" class="btn-subir">Subir DAT de Películas</button>
+    </form>
+  </div>
+
+  <!-- 3. JSON Libros -->
+  <div class="card-upload">
+    <div>
+      <h3>📚 3. Catálogo Libros (.json)</h3>
+      <p>Importa libros, autores, editoriales y calificaciones con corrección automática de columnas.</p>
+    </div>
+    <form method="post" action="{{ url_for('cargas_panel') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="tipo" value="LIBROS">
+      <input type="file" name="archivo" accept=".json" class="input-file" required>
+      <button type="submit" class="btn-subir">Subir JSON de Libros</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if resultado %}
+<div class="tarjeta" style="margin-bottom:24px; border:1.5px solid #2E6DA4;">
+  <h3 style="color:#1F4E79; margin-bottom:10px;">Resultado de la carga: {{ resultado.archivo }} ({{ resultado.tipo }})</h3>
+  <div style="display:flex; flex-wrap:wrap; gap:14px; margin-bottom:12px;">
+    {% for k, v in resultado.resumen.items() %}
+      <div style="background:#EAF1FA; padding:8px 14px; border-radius:8px; font-size:.9rem;">
+        <strong>{{ k|replace('_', ' ')|capitalize }}:</strong> {{ v }}
+      </div>
+    {% endfor %}
+    <div style="background:#fef7e6; padding:8px 14px; border-radius:8px; font-size:.9rem;">
+      <strong>Advertencias / Rechazados:</strong> {{ resultado.errores|length }}
+    </div>
+  </div>
+
+  {% if resultado.errores %}
+  <details>
+    <summary style="cursor:pointer; font-weight:600; color:#9a5b00;">Ver detalle de advertencias ({{ resultado.errores|length }})</summary>
+    <ul style="margin-top:8px; padding-left:20px; font-size:.85rem; color:#4b5563; max-height:180px; overflow-y:auto;">
+      {% for err in resultado.errores[:50] %}
+        <li>{{ err }}</li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="tarjeta">
+  <h3 style="color:#1F4E79; margin-bottom:12px;">Historial de Cargas Realizadas</h3>
+  <div style="overflow-x:auto;">
+    <table class="tabla-cargas">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Fecha y Hora</th>
+          <th>Usuario</th>
+          <th>Tipo</th>
+          <th>Archivo</th>
+          <th>Cargados</th>
+          <th>Rechazados</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in historial %}
+        <tr>
+          <td>{{ h.id_carga }}</td>
+          <td style="white-space:nowrap;">{{ h.fecha_hora }}</td>
+          <td>{{ h.usuario }}</td>
+          <td><strong>{{ h.tipo_archivo }}</strong></td>
+          <td>{{ h.nombre_archivo }}</td>
+          <td>{{ h.registros_cargados }}</td>
+          <td>{{ h.registros_rechazados }}</td>
+          <td>
+            {% if h.estado == 'PROCESADA' %}
+              <span class="pill-ok">PROCESADA</span>
+            {% elif h.estado == 'CON_ERRORES' %}
+              <span class="pill-warn">CON ERRORES</span>
+            {% else %}
+              <span class="pill-err">{{ h.estado }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center; padding:18px; color:#6b7280;">No se han realizado cargas todavía.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

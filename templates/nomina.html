@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block titulo %}Nómina · EntreCOL+{% endblock %}
+{% block contenido %}
+<style>
+  .tab-btn { padding: 9px 18px; border-radius: 8px; text-decoration: none; font-weight: 600;
+             background: #EAF1FA; color: #1F4E79; transition: all .15s; }
+  .tab-btn.activo { background: #1F4E79; color: #fff; }
+  .tabla-nom { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  .tabla-nom th { background: #1F4E79; color: #fff; text-align: left; padding: 11px 12px; }
+  .tabla-nom td { border-bottom: 1px solid #d9e0ea; padding: 10px 12px; }
+  .form-fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: end; margin-bottom: 20px; }
+  .form-fila label { margin: 0 0 5px; font-size: .85rem; }
+  .form-fila input, .form-fila select { width: 100%; padding: 9px 11px; border: 1.5px solid #d9e0ea; border-radius: 8px; background: #fbfcfe; }
+  .btn-chico { padding: 9px 16px; background: #1F4E79; color: #fff; border: 0; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .btn-chico:hover { background: #163a5a; }
+  .btn-peligro { padding: 5px 10px; background: #fef0ee; color: #b42318; border: 1px solid #f7c9c3; border-radius: 6px; cursor: pointer; font-size: .82rem; font-weight: 600; }
+  .badge-est { padding: 3px 9px; border-radius: 999px; font-size: .78rem; font-weight: 600; background: #EAF1FA; color: #1F4E79; }
+</style>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+  <div>
+    <h1>💰 Gestión de Nómina</h1>
+    <p class="subtitulo" style="margin:0;">Administra periodos, registra novedades y ejecuta la liquidación mensual.</p>
+  </div>
+  <a href="{{ url_for('menu') }}" style="text-decoration:none; font-weight:600;">← Volver al menú</a>
+</div>
+
+<div class="tarjeta">
+  <!-- Pestañas + Selector de Periodo activo -->
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:22px; padding-bottom:16px; border-bottom:1px solid #d9e0ea;">
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a href="{{ url_for('nomina_panel', tab='periodos', id_periodo=id_periodo) }}" class="tab-btn {{ 'activo' if tab == 'periodos' else '' }}">📅 1. Periodos</a>
+      <a href="{{ url_for('nomina_panel', tab='novedades', id_periodo=id_periodo) }}" class="tab-btn {{ 'activo' if tab == 'novedades' else '' }}">📝 2. Novedades</a>
+      <a href="{{ url_for('nomina_panel', tab='liquidacion', id_periodo=id_periodo) }}" class="tab-btn {{ 'activo' if tab == 'liquidacion' else '' }}">💵 3. Liquidación</a>
+    </div>
+
+    {% if periodos and tab in ['novedades', 'liquidacion'] %}
+    <form method="get" action="{{ url_for('nomina_panel') }}" style="display:flex; gap:8px; align-items:center;">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      <label style="margin:0; font-size:.85rem;">Periodo:</label>
+      <select name="id_periodo" onchange="this.form.submit()" style="padding:8px 12px; border-radius:8px; border:1.5px solid #1F4E79; font-weight:600;">
+        {% for p in periodos %}
+          <option value="{{ p.id_periodo }}" {% if p.id_periodo == id_periodo %}selected{% endif %}>
+            {{ p.anio }}-{{ '%02d'|format(p.mes) }} ({{ p.estado }})
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+    {% endif %}
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- PESTAÑA 1: PERIODOS                                              -->
+  <!-- ================================================================ -->
+  {% if tab == 'periodos' %}
+    {% if 'nomina:crear' in session.permisos %}
+    <h3 style="margin-bottom:12px; color:#1F4E79;">Abrir nuevo periodo de nómina</h3>
+    <form method="post" action="{{ url_for('nomina_crear_periodo') }}" class="form-fila">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <div>
+        <label>Año / Parámetro</label>
+        <select name="id_parametro" required>
+          {% for pa in parametros %}
+            <option value="{{ pa.id_parametro }}">{{ pa.anio }} (SMMLV: ${{ '{:,.0f}'.format(pa.smmlv) }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Mes (1 - 12)</label>
+        <input type="number" name="mes" min="1" max="12" value="3" required>
+      </div>
+      <div>
+        <label>Fecha Inicio</label>
+        <input type="date" name="fecha_inicio" value="2022-03-01" required>
+      </div>
+      <div>
+        <label>Fecha Fin</label>
+        <input type="date" name="fecha_fin" value="2022-03-30" required>
+      </div>
+      <div>
+        <button type="submit" class="btn-chico" style="width:100%;">+ Crear Periodo</button>
+      </div>
+    </form>
+    {% endif %}
+
+    <div style="overflow-x:auto;">
+      <table class="tabla-nom">
+        <thead>
+          <tr>
+            <th>Periodo</th>
+            <th>Rango de Fechas</th>
+            <th>SMMLV</th>
+            <th>Aux. Transporte</th>
+            <th>Salud / Pensión</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in periodos %}
+          <tr>
+            <td style="font-weight:700;">{{ p.anio }}-{{ '%02d'|format(p.mes) }}</td>
+            <td>{{ p.fecha_inicio }} al {{ p.fecha_fin }}</td>
+            <td>${{ '{:,.0f}'.format(p.smmlv) }}</td>
+            <td>${{ '{:,.0f}'.format(p.aux_transporte) }}</td>
+            <td>{{ p.pct_salud_empleado }}% / {{ p.pct_pension_empleado }}%</td>
+            <td><span class="badge-est">{{ p.estado }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="text-align:center; color:#6b7280; padding:18px;">No hay periodos creados aún. Crea uno arriba (ej. Marzo 2022).</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  <!-- ================================================================ -->
+  <!-- PESTAÑA 2: NOVEDADES                                             -->
+  <!-- ================================================================ -->
+  {% elif tab == 'novedades' %}
+    {% if not periodos %}
+      <p style="color:#6b7280;">Primero debes crear un periodo en la pestaña <strong>1. Periodos</strong>.</p>
+    {% else %}
+      {% if 'nomina:crear' in session.permisos %}
+      <h3 style="margin-bottom:12px; color:#1F4E79;">Registrar novedad (Vacaciones / Incapacidad)</h3>
+      <form method="post" action="{{ url_for('nomina_crear_novedad') }}" class="form-fila">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <input type="hidden" name="id_periodo" value="{{ id_periodo }}">
+        <div>
+          <label>Empleado</label>
+          <select name="codigo" required>
+            {% for e in empleados_sel %}
+              <option value="{{ e.codigo }}">{{ e.codigo }} - {{ e.nombre_completo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Tipo Novedad</label>
+          <select name="id_tipo_novedad" required>
+            {% for t in tipos_novedad %}
+              <option value="{{ t.id_tipo_novedad }}">{{ t.nombre }} ({{ t.porcentaje_pago }}%)</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Fecha Inicio</label>
+          <input type="date" name="fecha_inicio" required>
+        </div>
+        <div>
+          <label>Fecha Fin</label>
+          <input type="date" name="fecha_fin" required>
+        </div>
+        <div>
+          <button type="submit" class="btn-chico" style="width:100%;">+ Agregar</button>
+        </div>
+      </form>
+      {% endif %}
+
+      <div style="overflow-x:auto;">
+        <table class="tabla-nom">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Empleado</th>
+              <th>Tipo</th>
+              <th>Pago</th>
+              <th>Desde</th>
+              <th>Hasta</th>
+              <th>Días</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for n in novedades %}
+            <tr>
+              <td>{{ n.codigo }}</td>
+              <td style="font-weight:600;">{{ n.nombre_completo }}</td>
+              <td>{{ n.tipo_novedad }}</td>
+              <td>{{ n.porcentaje_pago }}%</td>
+              <td>{{ n.fecha_inicio }}</td>
+              <td>{{ n.fecha_fin }}</td>
+              <td><strong>{{ n.dias }}</strong></td>
+              <td>
+                {% if 'nomina:eliminar' in session.permisos %}
+                <form method="post" action="{{ url_for('nomina_eliminar_novedad', id_novedad=n.id_novedad) }}" style="margin:0;">
+                  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+                  <input type="hidden" name="id_periodo" value="{{ id_periodo }}">
+                  <button type="submit" class="btn-peligro">Quitar</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" style="text-align:center; color:#6b7280; padding:18px;">No hay novedades registradas en este periodo.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+  <!-- ================================================================ -->
+  <!-- PESTAÑA 3: LIQUIDACIÓN                                           -->
+  <!-- ================================================================ -->
+  {% elif tab == 'liquidacion' %}
+    {% if not periodos %}
+      <p style="color:#6b7280;">Primero debes crear un periodo en la pestaña <strong>1. Periodos</strong>.</p>
+    {% else %}
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; background:#f4f6fa; padding:14px 18px; border-radius:12px;">
+        <div>
+          <strong>Cálculo automático de nómina (base 30 días)</strong>
+          <div style="font-size:.85rem; color:#6b7280;">Aplica sueldo proporcional, auxilio de transporte (&le; 2 SMMLV), novedades y descuentos de ley (4% salud + 4% pensión).</div>
+        </div>
+        {% if 'nomina:crear' in session.permisos %}
+        <form method="post" action="{{ url_for('nomina_liquidar') }}" style="margin:0;">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <input type="hidden" name="id_periodo" value="{{ id_periodo }}">
+          <button type="submit" class="btn-chico" style="background:#1e6b3a;">⚡ Liquidar Periodo</button>
+        </form>
+        {% endif %}
+      </div>
+
+      {% if movimientos %}
+      <div style="margin-bottom:20px; padding:16px; border:1.5px solid #2E6DA4; border-radius:12px; background:#fbfcfe;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <strong style="color:#1F4E79;">Desprendible / Detalle de conceptos (Liquidación #{{ liq_detalle_id }})</strong>
+          <a href="{{ url_for('nomina_panel', tab='liquidacion', id_periodo=id_periodo) }}" style="font-size:.85rem;">✕ Cerrar detalle</a>
+        </div>
+        <table class="tabla-nom">
+          <thead><tr><th>Concepto</th><th>Tipo</th><th>Días</th><th>Valor</th></tr></thead>
+          <tbody>
+            {% for m in movimientos %}
+            <tr>
+              <td>{{ m.concepto }}</td>
+              <td>{{ m.tipo }}</td>
+              <td>{{ m.dias }}</td>
+              <td style="font-weight:600;">${{ '{:,.2f}'.format(m.valor) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      <div style="overflow-x:auto;">
+        <table class="tabla-nom">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Empleado</th>
+              <th>Dependencia</th>
+              <th>Días Trab.</th>
+              <th>Devengado</th>
+              <th>Deducciones</th>
+              <th>Neto a Pagar</th>
+              <th>Detalle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in liquidaciones %}
+            <tr>
+              <td>{{ l.codigo }}</td>
+              <td style="font-weight:600;">{{ l.nombre_completo }}</td>
+              <td>{{ l.dependencia }}</td>
+              <td>{{ l.dias_trabajados }}</td>
+              <td>${{ '{:,.2f}'.format(l.total_devengado) }}</td>
+              <td style="color:#b42318;">-${{ '{:,.2f}'.format(l.total_deducciones) }}</td>
+              <td style="font-weight:700; color:#1e6b3a;">${{ '{:,.2f}'.format(l.neto_pagar) }}</td>
+              <td>
+                <a href="{{ url_for('nomina_panel', tab='liquidacion', id_periodo=id_periodo, detalle=l.id_liquidacion) }}" style="font-weight:600; font-size:.85rem;">Ver conceptos</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" style="text-align:center; color:#6b7280; padding:18px;">Aún no se ha liquidado este periodo. Presiona <strong>⚡ Liquidar Periodo</strong> (requiere tener empleados cargados).</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

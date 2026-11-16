@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block titulo %}Usuarios y Roles · EntreCOL+{% endblock %}
+{% block contenido %}
+<style>
+  .tabla-usr { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .tabla-usr th { background: #1F4E79; color: #fff; text-align: left; padding: 11px 10px; }
+  .tabla-usr td { border-bottom: 1px solid #d9e0ea; padding: 10px; vertical-align: middle; }
+  .form-usr { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: end; margin-bottom: 22px; }
+  .form-usr label { margin: 0 0 5px; font-size: .85rem; }
+  .form-usr input, .form-usr select { width: 100%; padding: 9px 11px; border: 1.5px solid #d9e0ea; border-radius: 8px; background: #fbfcfe; }
+  .btn-chico { padding: 9px 15px; background: #1F4E79; color: #fff; border: 0; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: .85rem; }
+  .btn-chico:hover { background: #163a5a; }
+  .btn-sec { padding: 6px 10px; background: #EAF1FA; color: #1F4E79; border: 1px solid #c5d8ee; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: .8rem; }
+  .btn-peligro { padding: 6px 10px; background: #fef0ee; color: #b42318; border: 1px solid #f7c9c3; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: .8rem; }
+  .btn-ok { padding: 6px 10px; background: #e8f5ec; color: #1e6b3a; border: 1px solid #bfe3ca; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: .8rem; }
+  .estado-pill { padding: 3px 9px; border-radius: 999px; font-size: .78rem; font-weight: 600; }
+  .estado-activo { background: #e8f5ec; color: #1e6b3a; }
+  .estado-inactivo { background: #fef0ee; color: #b42318; }
+</style>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+  <div>
+    <h1>🔐 Usuarios y Roles</h1>
+    <p class="subtitulo" style="margin:0;">Gestiona las cuentas de acceso, perfiles de permisos y desbloqueo de usuarios.</p>
+  </div>
+  <a href="{{ url_for('menu') }}" style="text-decoration:none; font-weight:600;">← Volver al menú</a>
+</div>
+
+<div class="tarjeta" style="margin-bottom:24px;">
+  {% if 'usuarios:crear' in session.permisos %}
+  <h3 style="margin-bottom:12px; color:#1F4E79;">Crear nuevo usuario</h3>
+  <form method="post" action="{{ url_for('usuarios_crear') }}" class="form-usr">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <div>
+      <label>Usuario (login)</label>
+      <input type="text" name="username" placeholder="ej. analista1" required>
+    </div>
+    <div>
+      <label>Nombre Completo</label>
+      <input type="text" name="nombre_completo" placeholder="Nombre y apellido" required>
+    </div>
+    <div>
+      <label>Correo Electrónico</label>
+      <input type="email" name="email" placeholder="correo@entrecol.com" required>
+    </div>
+    <div>
+      <label>Contraseña (mín. 8)</label>
+      <input type="password" name="clave" minlength="8" required>
+    </div>
+    <div>
+      <label>Rol</label>
+      <select name="id_rol" required>
+        {% for r in roles %}
+          <option value="{{ r.id_rol }}">{{ r.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <button type="submit" class="btn-chico" style="width:100%;">+ Crear Usuario</button>
+    </div>
+  </form>
+  {% endif %}
+
+  <div style="overflow-x:auto;">
+    <table class="tabla-usr">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Nombre y Correo</th>
+          <th>Rol</th>
+          <th>Estado</th>
+          <th>Cambiar Clave</th>
+          <th>Acceso</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in usuarios %}
+        <tr>
+          <td><strong>{{ u.username }}</strong></td>
+          <td>
+            <div>{{ u.nombre_completo }}</div>
+            <div style="font-size:.82rem; color:#6b7280;">{{ u.email }}</div>
+          </td>
+          <td>
+            {% if 'usuarios:actualizar' in session.permisos and u.id_usuario != session.usuario_id %}
+            <form method="post" action="{{ url_for('usuarios_cambiar_rol', id_usuario=u.id_usuario) }}" style="display:flex; gap:6px; margin:0;">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <select name="id_rol" style="padding:5px 8px; border-radius:6px; border:1px solid #d9e0ea; font-size:.85rem;">
+                {% for r in roles %}
+                  <option value="{{ r.id_rol }}" {% if r.id_rol == u.id_rol %}selected{% endif %}>{{ r.nombre }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn-sec">Guardar</button>
+            </form>
+            {% else %}
+              <span style="font-weight:600; color:#1F4E79;">{{ u.rol }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if u.activo and u.intentos_fallidos < 5 %}
+              <span class="estado-pill estado-activo">Activo</span>
+            {% elif not u.activo %}
+              <span class="estado-pill estado-inactivo">Inactivo</span>
+            {% else %}
+              <span class="estado-pill estado-inactivo">Bloqueado ({{ u.intentos_fallidos }} fallos)</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if 'usuarios:actualizar' in session.permisos %}
+            <form method="post" action="{{ url_for('usuarios_reset_clave', id_usuario=u.id_usuario) }}" style="display:flex; gap:6px; margin:0;">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <input type="password" name="nueva_clave" placeholder="Nueva clave (8+)" minlength="8" required
+                     style="width:130px; padding:5px 8px; border:1px solid #d9e0ea; border-radius:6px; font-size:.82rem;">
+              <button type="submit" class="btn-sec">Cambiar</button>
+            </form>
+            {% endif %}
+          </td>
+          <td>
+            {% if 'usuarios:actualizar' in session.permisos and u.id_usuario != session.usuario_id %}
+              <form method="post" action="{{ url_for('usuarios_cambiar_estado', id_usuario=u.id_usuario) }}" style="margin:0;">
+                <input type="hidden" name="csrf" value="{{ csrf_token }}">
+                {% if u.activo and u.intentos_fallidos < 5 %}
+                  <input type="hidden" name="activo" value="0">
+                  <button type="submit" class="btn-peligro">Desactivar</button>
+                {% else %}
+                  <input type="hidden" name="activo" value="1">
+                  <button type="submit" class="btn-ok">Activar / Desbloquear</button>
+                {% endif %}
+              </form>
+            {% else %}
+              <span style="font-size:.8rem; color:#6b7280;">Sesión actual</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Tabla informativa de matriz de permisos por rol (ideal para la sustentación) -->
+<div class="tarjeta">
+  <h3 style="margin-bottom:10px; color:#1F4E79;">Matriz de Roles y Permisos del Sistema</h3>
+  <div style="overflow-x:auto;">
+    <table class="tabla-usr">
+      <thead>
+        <tr>
+          <th>Rol</th>
+          <th>Descripción</th>
+          <th>Permisos Habilitados</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pr in permisos_rol %}
+        <tr>
+          <td style="font-weight:700; white-space:nowrap;">{{ pr.rol }}</td>
+          <td>{{ pr.descripcion }}</td>
+          <td style="font-size:.82rem; color:#4b5563;">{{ pr.permisos or 'Ninguno' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

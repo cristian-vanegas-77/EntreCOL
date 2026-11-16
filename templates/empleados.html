@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block titulo %}Empleados · EntreCOL+{% endblock %}
+{% block contenido %}
+<style>
+  .tabla-emp { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .tabla-emp th { background: #1F4E79; color: #fff; text-align: left; padding: 11px 10px; }
+  .tabla-emp td { border-bottom: 1px solid #d9e0ea; padding: 10px; }
+  .btn-accion { padding: 5px 10px; border-radius: 6px; text-decoration: none; font-size: .82rem; font-weight: 600;
+                background: #EAF1FA; color: #1F4E79; border: 1px solid #c5d8ee; }
+  .btn-accion:hover { background: #d5e4f7; }
+  .btn-borrar { padding: 5px 10px; border-radius: 6px; font-size: .82rem; font-weight: 600; cursor: pointer;
+                background: #fef0ee; color: #b42318; border: 1px solid #f7c9c3; }
+  .btn-nuevo { padding: 10px 16px; background: #1e6b3a; color: #fff; border-radius: 8px;
+               text-decoration: none; font-weight: 600; font-size: .9rem; }
+  .btn-nuevo:hover { background: #16522c; }
+  .pag-btn { padding: 7px 14px; border: 1px solid #d9e0ea; border-radius: 8px; text-decoration: none; }
+</style>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+  <div>
+    <h1>👥 Administración de Empleados</h1>
+    <p class="subtitulo" style="margin:0;">Total registrados: {{ total }} empleado(s).</p>
+  </div>
+  <div style="display:flex; gap:14px; align-items:center;">
+    {% if 'empleados:crear' in session.permisos %}
+      <a href="{{ url_for('empleados_nuevo') }}" class="btn-nuevo">+ Nuevo Empleado</a>
+    {% endif %}
+    <a href="{{ url_for('menu') }}" style="text-decoration:none; font-weight:600;">← Volver al menú</a>
+  </div>
+</div>
+
+<div class="tarjeta">
+  <!-- Buscador y filtro por dependencia -->
+  <form method="get" action="{{ url_for('empleados_lista') }}"
+        style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; align-items:center;">
+    <input type="text" name="q" value="{{ q }}" placeholder="Buscar por código o nombre..."
+           style="flex:1; min-width:200px; padding:9px 12px;">
+    <select name="id_dependencia" style="padding:9px 12px; border:1.5px solid #d9e0ea; border-radius:10px; background:#fbfcfe;">
+      <option value="">Todas las dependencias</option>
+      {% for d in dependencias %}
+        <option value="{{ d.id_dependencia }}" {% if id_dependencia == d.id_dependencia %}selected{% endif %}>
+          {{ d.nombre }}
+        </option>
+      {% endfor %}
+    </select>
+    <select name="orden" style="padding:9px 12px; border:1.5px solid #d9e0ea; border-radius:10px; background:#fbfcfe;">
+      <option value="nombre" {% if orden == 'nombre' %}selected{% endif %}>Ordenar: Nombre</option>
+      <option value="codigo" {% if orden == 'codigo' %}selected{% endif %}>Ordenar: Código</option>
+      <option value="dependencia" {% if orden == 'dependencia' %}selected{% endif %}>Ordenar: Dependencia</option>
+      <option value="sueldo" {% if orden == 'sueldo' %}selected{% endif %}>Ordenar: Sueldo</option>
+    </select>
+    <button type="submit" class="btn" style="margin:0; width:auto; padding:9px 18px;">Filtrar</button>
+    {% if q or id_dependencia %}
+      <a href="{{ url_for('empleados_lista') }}" style="font-size:.88rem;">Limpiar</a>
+    {% endif %}
+  </form>
+
+  <div style="overflow-x:auto;">
+    <table class="tabla-emp">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Nombre Completo</th>
+          <th>Dependencia</th>
+          <th>Cargo</th>
+          <th>Ingreso</th>
+          <th>Sueldo</th>
+          <th>EPS / ARL / Pensión</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in filas %}
+        <tr>
+          <td><strong>{{ e.codigo }}</strong></td>
+          <td>{{ e.nombre_completo }}</td>
+          <td>{{ e.dependencia }}</td>
+          <td>{{ e.cargo }}</td>
+          <td style="white-space:nowrap;">{{ e.fecha_ingreso }}</td>
+          <td style="font-weight:600; white-space:nowrap;">${{ '{:,.0f}'.format(e.sueldo) }}</td>
+          <td style="font-size:.82rem; color:#4b5563;">{{ e.eps }} · {{ e.arl }} · {{ e.pension }}</td>
+          <td style="white-space:nowrap;">
+            <div style="display:flex; gap:6px;">
+              {% if 'empleados:actualizar' in session.permisos %}
+                <a href="{{ url_for('empleados_editar', codigo=e.codigo) }}" class="btn-accion">Editar</a>
+              {% endif %}
+              {% if 'empleados:eliminar' in session.permisos %}
+                <form method="post" action="{{ url_for('empleados_eliminar', codigo=e.codigo) }}" style="margin:0;"
+                      onsubmit="return confirm('¿Seguro que deseas eliminar al empleado {{ e.codigo }}?');">
+                  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+                  <button type="submit" class="btn-borrar">Eliminar</button>
+                </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center; padding:18px; color:#6b7280;">No se encontraron empleados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:18px; font-size:.9rem;">
+    <span style="color:#6b7280;">Página {{ pagina }} de {{ total_paginas }}</span>
+    <div style="display:flex; gap:8px;">
+      {% if pagina > 1 %}
+        <a href="{{ url_for('empleados_lista', q=q, id_dependencia=id_dependencia or '', orden=orden, pagina=pagina-1) }}" class="pag-btn">← Anterior</a>
+      {% endif %}
+      {% if pagina < total_paginas %}
+        <a href="{{ url_for('empleados_lista', q=q, id_dependencia=id_dependencia or '', orden=orden, pagina=pagina+1) }}" class="pag-btn">Siguiente →</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

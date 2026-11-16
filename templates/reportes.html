@@ -4,22 +4,29 @@
 <head>
   <meta charset="utf-8">
   <style>
-    body { font-family: Arial, sans-serif; color: #1f2937; font-size: 12px; }
-    h1 { color: #1F4E79; border-bottom: 2px solid #1F4E79; padding-bottom: 6px; font-size: 18px; }
-    .meta { color: #6b7280; margin-bottom: 16px; font-size: 11px; }
-    .grafica { text-align: center; margin: 16px 0; }
-    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
-    th { background: #1F4E79; color: #fff; text-align: left; padding: 8px; }
-    td { border-bottom: 1px solid #d9e0ea; padding: 7px 8px; }
+    body { font-family: Arial, sans-serif; color: #1f2937; font-size: 11px; }
+    h1 { color: #1F4E79; border-bottom: 2px solid #1F4E79; padding-bottom: 6px; font-size: 17px; }
+    h2 { color: #1F4E79; margin-top: 18px; margin-bottom: 6px; font-size: 13px; border-bottom: 1px solid #d9e0ea; padding-bottom: 3px; }
+    .meta { color: #6b7280; margin-bottom: 14px; font-size: 10px; }
+    .grafica { text-align: center; margin: 14px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 12px; }
+    th { background: #1F4E79; color: #fff; text-align: left; padding: 6px 8px; }
+    td { border-bottom: 1px solid #d9e0ea; padding: 5px 8px; }
     tr:nth-child(even) td { background: #f4f6fa; }
   </style>
 </head>
 <body>
   <h1>EntreCOL+ · {{ titulo }}</h1>
   <div class="meta">Generado por: {{ session.nombre }} ({{ session.rol }})</div>
+
   {% if grafica %}
-    <div class="grafica"><img src="data:image/png;base64,{{ grafica }}" style="width: 520px;"></div>
+    <div class="grafica"><img src="data:image/png;base64,{{ grafica }}" style="width: 500px;"></div>
   {% endif %}
+  {% if grafica_extra %}
+    <div class="grafica"><img src="data:image/png;base64,{{ grafica_extra }}" style="width: 520px;"></div>
+  {% endif %}
+
+  {% if columnas %}
   <table>
     <thead><tr>{% for col in columnas %}<th>{{ col }}</th>{% endfor %}</tr></thead>
     <tbody>
@@ -30,6 +37,200 @@
       {% endfor %}
     </tbody>
   </table>
+  {% endif %}
+
+  {% if reporte_id == 1 and datos_nomina %}
+    <h2>1. Cantidad y lista de empleados de la empresa (Total: {{ datos_nomina.total_empleados }} · Nombre {{ orden_nombre }})</h2>
+    <table>
+      <thead><tr><th>Código</th><th>Nombre Completo</th><th>Dependencia</th><th>Cargo</th><th>Sueldo ($)</th></tr></thead>
+      <tbody>
+        {% for e in datos_nomina.empleados_empresa %}
+        <tr>
+          <td>{{ e.codigo }}</td><td>{{ e.nombre_completo }}</td><td>{{ e.dependencia }}</td><td>{{ e.cargo }}</td><td>${{ '{:,.0f}'.format(e.sueldo) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>2. Cantidad y lista de empleados por dependencia (Dependencia ASC · Nombre {{ orden_nombre }})</h2>
+    <table>
+      <thead><tr><th>Dependencia</th><th>Código</th><th>Nombre Completo</th><th>Cargo</th><th>Sueldo ($)</th></tr></thead>
+      <tbody>
+        {% for e in datos_nomina.empleados_por_dep %}
+        <tr>
+          <td>{{ e.dependencia }}</td><td>{{ e.codigo }}</td><td>{{ e.nombre_completo }}</td><td>{{ e.cargo }}</td><td>${{ '{:,.0f}'.format(e.sueldo) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>3. Resumen y lista por cargo y por dependencia (Dependencia y Cargo ASC · Nombre {{ orden_nombre }})</h2>
+    <table>
+      <thead><tr><th>Dependencia</th><th>Cargo</th><th>Cantidad de Empleados</th></tr></thead>
+      <tbody>
+        {% for c in datos_nomina.por_cargo_dep %}
+        <tr><td>{{ c.dependencia }}</td><td>{{ c.cargo }}</td><td>{{ c.cantidad }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Dependencia</th><th>Cargo</th><th>Código</th><th>Nombre Completo</th><th>Sueldo ($)</th></tr></thead>
+      <tbody>
+        {% for e in datos_nomina.empleados_por_dep_cargo %}
+        <tr>
+          <td>{{ e.dependencia }}</td><td>{{ e.cargo }}</td><td>{{ e.codigo }}</td><td>{{ e.nombre_completo }}</td><td>${{ '{:,.0f}'.format(e.sueldo) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if reporte_id == 3 and datos_sp %}
+    <h2>a. Gráfico de frecuencia por EPS para toda la empresa</h2>
+    <div class="grafica"><img src="data:image/png;base64,{{ datos_sp.graf_eps }}" style="width: 500px;"></div>
+
+    <h2>b. Gráfico de frecuencia por Pensión para toda la empresa</h2>
+    <div class="grafica"><img src="data:image/png;base64,{{ datos_sp.graf_pension }}" style="width: 500px;"></div>
+
+    <h2>c. Gráfico de barras comparativas (frecuencias) por EPS por dependencia</h2>
+    <div class="grafica"><img src="data:image/png;base64,{{ datos_sp.graf_eps_dep }}" style="width: 520px;"></div>
+
+    <h2>d. Gráfico de barras comparativas (frecuencias) por Pensión por dependencia</h2>
+    <div class="grafica"><img src="data:image/png;base64,{{ datos_sp.graf_pension_dep }}" style="width: 520px;"></div>
+
+    <h2>e. Cantidad y lista de empleados por Cargo y por EPS (Cargo y EPS ASC · Nombre {{ orden_nombre }})</h2>
+    <table>
+      <thead><tr><th>Cargo</th><th>EPS</th><th>Cantidad de Empleados</th></tr></thead>
+      <tbody>
+        {% for r in datos_sp.conteo_cargo_eps %}
+        <tr><td>{{ r.cargo }}</td><td>{{ r.eps }}</td><td>{{ r.cantidad }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Cargo</th><th>EPS</th><th>Código</th><th>Nombre Completo</th><th>Dependencia</th></tr></thead>
+      <tbody>
+        {% for e in datos_sp.lista_cargo_eps %}
+        <tr><td>{{ e.cargo }}</td><td>{{ e.eps }}</td><td>{{ e.codigo }}</td><td>{{ e.nombre_completo }}</td><td>{{ e.dependencia }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>f. Cantidad y lista de empleados por Cargo y por Pensión (Cargo y Pensión ASC · Nombre {{ orden_nombre }})</h2>
+    <table>
+      <thead><tr><th>Cargo</th><th>Pensión</th><th>Cantidad de Empleados</th></tr></thead>
+      <tbody>
+        {% for r in datos_sp.conteo_cargo_pension %}
+        <tr><td>{{ r.cargo }}</td><td>{{ r.pension }}</td><td>{{ r.cantidad }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Cargo</th><th>Pensión</th><th>Código</th><th>Nombre Completo</th><th>Dependencia</th></tr></thead>
+      <tbody>
+        {% for e in datos_sp.lista_cargo_pension %}
+        <tr><td>{{ e.cargo }}</td><td>{{ e.pension }}</td><td>{{ e.codigo }}</td><td>{{ e.nombre_completo }}</td><td>{{ e.dependencia }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if reporte_id == 4 and datos_nov %}
+    <h2>a. Lista de empleados con novedades en el rango {{ datos_nov.f1 }} vs {{ datos_nov.f2 }} (Empleados distintos: {{ datos_nov.empleados_unicos }})</h2>
+    <table>
+      <thead><tr><th>Código</th><th>Nombre Completo</th><th>Dependencia</th><th>Cargo</th><th>Tipo Novedad</th><th>Inicio</th><th>Fin</th><th>Días</th></tr></thead>
+      <tbody>
+        {% for n in datos_nov.lista_empleados %}
+        <tr>
+          <td>{{ n.codigo }}</td><td>{{ n.nombre_completo }}</td><td>{{ n.dependencia }}</td><td>{{ n.cargo }}</td>
+          <td>{{ n.tipo_novedad }}</td><td>{{ n.fecha_inicio }}</td><td>{{ n.fecha_fin }}</td><td>{{ n.dias }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8">No se registraron novedades en el rango {{ datos_nov.f1 }} a {{ datos_nov.f2 }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>b. Cantidad de empleados con novedades ({{ datos_nov.f1 }} vs {{ datos_nov.f2 }}) por dependencia y por cargo</h2>
+    <table>
+      <thead><tr><th>Dependencia</th><th>Cargo</th><th>Cantidad de Empleados</th><th>Total Novedades</th></tr></thead>
+      <tbody>
+        {% for r in datos_nov.por_dep_cargo %}
+        <tr><td>{{ r.dependencia }}</td><td>{{ r.cargo }}</td><td>{{ r.cantidad_empleados }}</td><td>{{ r.total_novedades }}</td></tr>
+        {% else %}
+        <tr><td colspan="4">Sin datos agrupados para este rango.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if reporte_id == 5 and datos_ent %}
+    <h2>a. Listado de películas por género ({{ datos_ent.f1 }} – {{ datos_ent.f2 }} · Títulos {{ orden_nombre }})</h2>
+    <table>
+      <thead><tr><th>Género</th><th>ID</th><th>Título</th><th>Año</th></tr></thead>
+      <tbody>
+        {% for p in datos_ent.peliculas_genero %}
+        <tr><td>{{ p.genero }}</td><td>{{ p.id_pelicula }}</td><td>{{ p.titulo }}</td><td>{{ p.anio }}</td></tr>
+        {% else %}
+        <tr><td colspan="4">Sin películas registradas entre {{ datos_ent.f1 }} y {{ datos_ent.f2 }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>b. Top {{ datos_ent.top_n }} libros con mejor rating (Títulos {{ orden_nombre }})</h2>
+    <table>
+      <thead><tr><th>Título</th><th>Autores</th><th>Editorial</th><th>Año</th><th>Rating</th><th>Votos</th></tr></thead>
+      <tbody>
+        {% for l in datos_ent.top_n_libros %}
+        <tr><td>{{ l.titulo }}</td><td>{{ l.autores }}</td><td>{{ l.editorial }}</td><td>{{ l.anio or '—' }}</td><td>{{ l.rating_promedio }}</td><td>{{ l.num_calificaciones }}</td></tr>
+        {% else %}
+        <tr><td colspan="6">Sin libros registrados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>c.1. Top 5 libros con mejor rating por año (Títulos {{ orden_nombre }})</h2>
+    <table>
+      <thead><tr><th>Año</th><th>Título</th><th>Autores</th><th>Rating</th><th>Votos</th></tr></thead>
+      <tbody>
+        {% for l in datos_ent.top5_mejor_anio %}
+        <tr><td>{{ l.anio }}</td><td>{{ l.titulo }}</td><td>{{ l.autores }}</td><td>{{ l.rating_promedio }}</td><td>{{ l.num_calificaciones }}</td></tr>
+        {% else %}
+        <tr><td colspan="5">Sin libros con año de publicación.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>c.2. Top 5 libros con peor rating por año (Títulos {{ orden_nombre }})</h2>
+    <table>
+      <thead><tr><th>Año</th><th>Título</th><th>Autores</th><th>Rating</th><th>Votos</th></tr></thead>
+      <tbody>
+        {% for l in datos_ent.top5_peor_anio %}
+        <tr><td>{{ l.anio }}</td><td>{{ l.titulo }}</td><td>{{ l.autores }}</td><td>{{ l.rating_promedio }}</td><td>{{ l.num_calificaciones }}</td></tr>
+        {% else %}
+        <tr><td colspan="5">Sin libros con año de publicación.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>d. Películas con {{ datos_ent.num_generos }} género(s) (Cantidad: {{ datos_ent.cantidad_n_generos }} · Títulos {{ orden_nombre }})</h2>
+    <table>
+      <thead><tr><th>ID</th><th>Título</th><th>Año</th><th>Géneros</th></tr></thead>
+      <tbody>
+        {% for p in datos_ent.peliculas_n_generos %}
+        <tr><td>{{ p.id_pelicula }}</td><td>{{ p.titulo }}</td><td>{{ p.anio or '—' }}</td><td>{{ p.generos }}</td></tr>
+        {% else %}
+        <tr><td colspan="4">No hay películas con exactamente {{ datos_ent.num_generos }} género(s).</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>e. Gráfico de frecuencia de películas por género</h2>
+    <div class="grafica"><img src="data:image/png;base64,{{ datos_ent.graf_peliculas_genero }}" style="width: 520px;"></div>
+
+    <h2>f. Gráfico de frecuencia de libros por año de publicación ({{ datos_ent.f1 }} – {{ datos_ent.f2 }})</h2>
+    <div class="grafica"><img src="data:image/png;base64,{{ datos_ent.graf_libros_anio }}" style="width: 520px;"></div>
+  {% endif %}
 </body>
 </html>
 {% else %}
@@ -44,9 +245,13 @@
   .btn-pdf { background: #b42318; color: #fff; padding: 9px 16px; border-radius: 8px;
              text-decoration: none; font-weight: 600; font-size: .9rem; }
   .btn-pdf:hover { background: #911c13; }
-  .tabla-rep { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  .tabla-rep th { background: #1F4E79; color: #fff; text-align: left; padding: 11px 12px; }
-  .tabla-rep td { border-bottom: 1px solid #d9e0ea; padding: 10px 12px; }
+  .tabla-rep { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .9rem; }
+  .tabla-rep th { background: #1F4E79; color: #fff; text-align: left; padding: 10px 12px; }
+  .tabla-rep td { border-bottom: 1px solid #d9e0ea; padding: 9px 12px; }
+  .seccion-nom { margin-top: 28px; padding-top: 18px; border-top: 1.5px solid #d9e0ea; }
+  .seccion-nom h3 { color: #1F4E79; margin-bottom: 8px; }
+  .badge-total { display: inline-block; background: #EAF1FA; color: #1F4E79; padding: 4px 10px; border-radius: 999px; font-size: .82rem; font-weight: 700; margin-left: 6px; }
+  .caja-graf { text-align:center; margin:16px 0; padding:12px; background:#fbfcfe; border:1px solid #d9e0ea; border-radius:12px; }
 </style>
 
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
@@ -59,11 +264,11 @@
 
 <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:24px;">
   {% set lista_rep = [
-    (1, '1. Empleados por dependencia'),
-    (2, '2. Películas por género'),
-    (3, '3. Libros por editorial'),
-    (4, '4. Top libros por rating'),
-    (5, '5. Nómina por periodo')
+    (1, '1. Reporte de Nómina'),
+    (2, '2. Información Personal'),
+    (3, '3. Salud y Pensión'),
+    (4, '4. Reporte de Novedades'),
+    (5, '5. Base-Entretenimiento')
   ] %}
   {% for rid, rnom in lista_rep %}
     <a href="{{ url_for('ver_reporte', num=rid) }}" class="rep-btn {{ 'activo' if reporte_id == rid else '' }}">
@@ -76,20 +281,58 @@
 <div class="tarjeta">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
     <h2 style="color:#1F4E79;">{{ titulo }}</h2>
-    <div style="display:flex; gap:10px; align-items:center;">
-      {% if reporte_id in [2, 3, 4] %}
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      {% if reporte_id in [1, 3] %}
       <form method="get" action="{{ url_for('ver_reporte', num=reporte_id) }}" style="display:flex; gap:6px; align-items:center;">
-        <label style="margin:0; font-size:.85rem;">Top:</label>
-        <select name="limite" onchange="this.form.submit()" style="padding:7px 10px; border-radius:8px; border:1.5px solid #d9e0ea;">
-          {% for n in [5, 10, 15, 20] %}
-            <option value="{{ n }}" {% if limite == n %}selected{% endif %}>{{ n }}</option>
-          {% endfor %}
+        <label style="margin:0; font-size:.85rem;">Ordenar nombres:</label>
+        <select name="orden" onchange="this.form.submit()" style="padding:7px 10px; border-radius:8px; border:1.5px solid #d9e0ea;">
+          <option value="ASC" {% if orden_nombre == 'ASC' %}selected{% endif %}>Ascendente (A → Z)</option>
+          <option value="DESC" {% if orden_nombre == 'DESC' %}selected{% endif %}>Descendente (Z → A)</option>
         </select>
       </form>
       {% endif %}
 
+      {% if reporte_id == 4 %}
+      <form method="get" action="{{ url_for('ver_reporte', num=4) }}" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+        <label style="margin:0; font-size:.85rem;">F1 (MM/AAAA):</label>
+        <input type="text" name="f1" value="{{ f1 }}" placeholder="01/2026" pattern="(0[1-9]|1[0-2])/\d{4}" required
+               style="width:88px; padding:7px 9px; border-radius:8px; border:1.5px solid #d9e0ea;">
+        <label style="margin:0; font-size:.85rem;">F2 (MM/AAAA):</label>
+        <input type="text" name="f2" value="{{ f2 }}" placeholder="12/2026" pattern="(0[1-9]|1[0-2])/\d{4}" required
+               style="width:88px; padding:7px 9px; border-radius:8px; border:1.5px solid #d9e0ea;">
+        <button type="submit" style="padding:7px 12px; border-radius:8px; background:#1F4E79; color:#fff; border:none; font-weight:600; cursor:pointer;">
+          Filtrar
+        </button>
+      </form>
+      {% endif %}
+
+      {% if reporte_id == 5 %}
+      <form method="get" action="{{ url_for('ver_reporte', num=5) }}" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <label style="margin:0; font-size:.85rem;">Año F1:</label>
+        <input type="number" name="f1" value="{{ f1 }}" min="1900" max="2100" required
+               style="width:76px; padding:7px 8px; border-radius:8px; border:1.5px solid #d9e0ea;">
+        <label style="margin:0; font-size:.85rem;">Año F2:</label>
+        <input type="number" name="f2" value="{{ f2 }}" min="1900" max="2100" required
+               style="width:76px; padding:7px 8px; border-radius:8px; border:1.5px solid #d9e0ea;">
+        <label style="margin:0; font-size:.85rem;">Top N libros:</label>
+        <input type="number" name="top_n" value="{{ top_n }}" min="1" max="100" required
+               style="width:64px; padding:7px 8px; border-radius:8px; border:1.5px solid #d9e0ea;">
+        <label style="margin:0; font-size:.85rem;">N géneros pel.:</label>
+        <input type="number" name="num_generos" value="{{ num_generos }}" min="1" max="15" required
+               style="width:60px; padding:7px 8px; border-radius:8px; border:1.5px solid #d9e0ea;">
+        <label style="margin:0; font-size:.85rem;">Nombres:</label>
+        <select name="orden" style="padding:7px 9px; border-radius:8px; border:1.5px solid #d9e0ea;">
+          <option value="ASC" {% if orden_nombre == 'ASC' %}selected{% endif %}>ASC (A → Z)</option>
+          <option value="DESC" {% if orden_nombre == 'DESC' %}selected{% endif %}>DESC (Z → A)</option>
+        </select>
+        <button type="submit" style="padding:7px 12px; border-radius:8px; background:#1F4E79; color:#fff; border:none; font-weight:600; cursor:pointer;">
+          Aplicar
+        </button>
+      </form>
+      {% endif %}
+
       {% if 'reportes:exportar' in session.permisos %}
-      <a href="{{ url_for('ver_reporte', num=reporte_id, limite=limite, formato='pdf') }}" target="_blank" class="btn-pdf">
+      <a href="{{ url_for('ver_reporte', num=reporte_id, limite=limite, orden=orden_nombre, f1=f1, f2=f2, top_n=top_n, num_generos=num_generos, formato='pdf') }}" target="_blank" class="btn-pdf">
         📄 Exportar PDF
       </a>
       {% endif %}
@@ -97,11 +340,18 @@
   </div>
 
   {% if grafica %}
-  <div style="text-align:center; margin:20px 0; padding:12px; background:#fbfcfe; border:1px solid #d9e0ea; border-radius:12px;">
+  <div class="caja-graf">
     <img src="data:image/png;base64,{{ grafica }}" alt="Gráfica" style="max-width:100%; height:auto;">
   </div>
   {% endif %}
 
+  {% if grafica_extra %}
+  <div class="caja-graf">
+    <img src="data:image/png;base64,{{ grafica_extra }}" alt="Gráfica Comparativa" style="max-width:100%; height:auto;">
+  </div>
+  {% endif %}
+
+  {% if columnas %}
   <div style="overflow-x:auto;">
     <table class="tabla-rep">
       <thead>
@@ -120,6 +370,354 @@
       </tbody>
     </table>
   </div>
+  {% endif %}
+
+  {% if reporte_id == 1 and datos_nomina %}
+  <div class="seccion-nom">
+    <h3>1. Lista de empleados de la empresa (Orden nombre: {{ orden_nombre }}) <span class="badge-total">Total: {{ datos_nomina.total_empleados }}</span></h3>
+    <div style="overflow-x:auto; max-height:360px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Código</th><th>Nombre Completo</th><th>Dependencia</th><th>Cargo</th><th>Sueldo ($)</th></tr></thead>
+        <tbody>
+          {% for e in datos_nomina.empleados_empresa %}
+          <tr>
+            <td><strong>{{ e.codigo }}</strong></td>
+            <td>{{ e.nombre_completo }}</td>
+            <td>{{ e.dependencia }}</td>
+            <td>{{ e.cargo }}</td>
+            <td>${{ '{:,.0f}'.format(e.sueldo) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>2. Lista de empleados por dependencia (Dependencia ASC · Nombre {{ orden_nombre }})</h3>
+    <div style="overflow-x:auto; max-height:360px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Dependencia</th><th>Código</th><th>Nombre Completo</th><th>Cargo</th><th>Sueldo ($)</th></tr></thead>
+        <tbody>
+          {% for e in datos_nomina.empleados_por_dep %}
+          <tr>
+            <td><strong>{{ e.dependencia }}</strong></td>
+            <td>{{ e.codigo }}</td>
+            <td>{{ e.nombre_completo }}</td>
+            <td>{{ e.cargo }}</td>
+            <td>${{ '{:,.0f}'.format(e.sueldo) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>3. Cantidad y lista de empleados por cargo por dependencia (Dependencia y Cargo ASC · Nombre {{ orden_nombre }})</h3>
+    <div style="overflow-x:auto; margin-bottom:16px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Dependencia</th><th>Cargo</th><th>Cantidad de Empleados</th></tr></thead>
+        <tbody>
+          {% for c in datos_nomina.por_cargo_dep %}
+          <tr>
+            <td>{{ c.dependencia }}</td>
+            <td>{{ c.cargo }}</td>
+            <td><strong>{{ c.cantidad }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="overflow-x:auto; max-height:360px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Dependencia</th><th>Cargo</th><th>Código</th><th>Nombre Completo</th><th>Sueldo ($)</th></tr></thead>
+        <tbody>
+          {% for e in datos_nomina.empleados_por_dep_cargo %}
+          <tr>
+            <td>{{ e.dependencia }}</td>
+            <td><strong>{{ e.cargo }}</strong></td>
+            <td>{{ e.codigo }}</td>
+            <td>{{ e.nombre_completo }}</td>
+            <td>${{ '{:,.0f}'.format(e.sueldo) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if reporte_id == 3 and datos_sp %}
+  <div class="seccion-nom">
+    <h3>a. Gráfico de frecuencia por EPS para toda la empresa</h3>
+    <div class="caja-graf">
+      <img src="data:image/png;base64,{{ datos_sp.graf_eps }}" alt="Frecuencia por EPS" style="max-width:100%; height:auto;">
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>b. Gráfico de frecuencia por Pensión para toda la empresa</h3>
+    <div class="caja-graf">
+      <img src="data:image/png;base64,{{ datos_sp.graf_pension }}" alt="Frecuencia por Pensión" style="max-width:100%; height:auto;">
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>c. Gráfico de barras comparativas (frecuencias) por EPS por dependencia</h3>
+    <div class="caja-graf">
+      <img src="data:image/png;base64,{{ datos_sp.graf_eps_dep }}" alt="Comparativa EPS por Dependencia" style="max-width:100%; height:auto;">
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>d. Gráfico de barras comparativas (frecuencias) por Pensión por dependencia</h3>
+    <div class="caja-graf">
+      <img src="data:image/png;base64,{{ datos_sp.graf_pension_dep }}" alt="Comparativa Pensión por Dependencia" style="max-width:100%; height:auto;">
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>e. Cantidad y lista de empleados por Cargo y por EPS (Cargo y EPS ASC · Nombre {{ orden_nombre }})</h3>
+    <div style="overflow-x:auto; margin-bottom:16px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Cargo</th><th>EPS</th><th>Cantidad de Empleados</th></tr></thead>
+        <tbody>
+          {% for r in datos_sp.conteo_cargo_eps %}
+          <tr>
+            <td>{{ r.cargo }}</td>
+            <td>{{ r.eps }}</td>
+            <td><strong>{{ r.cantidad }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="overflow-x:auto; max-height:360px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Cargo</th><th>EPS</th><th>Código</th><th>Nombre Completo</th><th>Dependencia</th></tr></thead>
+        <tbody>
+          {% for e in datos_sp.lista_cargo_eps %}
+          <tr>
+            <td><strong>{{ e.cargo }}</strong></td>
+            <td>{{ e.eps }}</td>
+            <td>{{ e.codigo }}</td>
+            <td>{{ e.nombre_completo }}</td>
+            <td>{{ e.dependencia }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>f. Cantidad y lista de empleados por Cargo y por Pensión (Cargo y Pensión ASC · Nombre {{ orden_nombre }})</h3>
+    <div style="overflow-x:auto; margin-bottom:16px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Cargo</th><th>Pensión</th><th>Cantidad de Empleados</th></tr></thead>
+        <tbody>
+          {% for r in datos_sp.conteo_cargo_pension %}
+          <tr>
+            <td>{{ r.cargo }}</td>
+            <td>{{ r.pension }}</td>
+            <td><strong>{{ r.cantidad }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="overflow-x:auto; max-height:360px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Cargo</th><th>Pensión</th><th>Código</th><th>Nombre Completo</th><th>Dependencia</th></tr></thead>
+        <tbody>
+          {% for e in datos_sp.lista_cargo_pension %}
+          <tr>
+            <td><strong>{{ e.cargo }}</strong></td>
+            <td>{{ e.pension }}</td>
+            <td>{{ e.codigo }}</td>
+            <td>{{ e.nombre_completo }}</td>
+            <td>{{ e.dependencia }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if reporte_id == 4 and datos_nov %}
+  <div class="seccion-nom">
+    <h3>a. Lista de empleados con novedades ({{ datos_nov.f1 }} vs {{ datos_nov.f2 }}) <span class="badge-total">Empleados: {{ datos_nov.empleados_unicos }}</span></h3>
+    <div style="overflow-x:auto; max-height:380px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Código</th><th>Nombre Completo</th><th>Dependencia</th><th>Cargo</th><th>Tipo Novedad</th><th>Inicio</th><th>Fin</th><th>Días</th></tr></thead>
+        <tbody>
+          {% for n in datos_nov.lista_empleados %}
+          <tr>
+            <td><strong>{{ n.codigo }}</strong></td>
+            <td>{{ n.nombre_completo }}</td>
+            <td>{{ n.dependencia }}</td>
+            <td>{{ n.cargo }}</td>
+            <td>{{ n.tipo_novedad }}</td>
+            <td>{{ n.fecha_inicio }}</td>
+            <td>{{ n.fecha_fin }}</td>
+            <td><strong>{{ n.dias }}</strong></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" style="padding:16px; text-align:center; color:#6b7280;">No se registraron novedades entre {{ datos_nov.f1 }} y {{ datos_nov.f2 }}.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>b. Cantidad de empleados con novedades ({{ datos_nov.f1 }} vs {{ datos_nov.f2 }}) por dependencia y por cargo</h3>
+    <div style="overflow-x:auto;">
+      <table class="tabla-rep">
+        <thead><tr><th>Dependencia</th><th>Cargo</th><th>Cantidad de Empleados</th><th>Total Novedades</th></tr></thead>
+        <tbody>
+          {% for r in datos_nov.por_dep_cargo %}
+          <tr>
+            <td><strong>{{ r.dependencia }}</strong></td>
+            <td>{{ r.cargo }}</td>
+            <td><strong>{{ r.cantidad_empleados }}</strong></td>
+            <td>{{ r.total_novedades }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" style="padding:16px; text-align:center; color:#6b7280;">Sin registros agrupados para el rango seleccionado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if reporte_id == 5 and datos_ent %}
+  <div class="seccion-nom">
+    <h3>a. Listado de películas por género ({{ datos_ent.f1 }} – {{ datos_ent.f2 }} · Títulos {{ orden_nombre }}) <span class="badge-total">{{ datos_ent.peliculas_genero|length }} registros</span></h3>
+    <div style="overflow-x:auto; max-height:380px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Género</th><th>ID</th><th>Título</th><th>Año</th></tr></thead>
+        <tbody>
+          {% for p in datos_ent.peliculas_genero %}
+          <tr>
+            <td><strong>{{ p.genero }}</strong></td>
+            <td>{{ p.id_pelicula }}</td>
+            <td>{{ p.titulo }}</td>
+            <td>{{ p.anio }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" style="padding:16px; text-align:center; color:#6b7280;">Sin películas registradas entre {{ datos_ent.f1 }} y {{ datos_ent.f2 }}.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>b. Listado del Top {{ datos_ent.top_n }} libros con mejor rating (Títulos {{ orden_nombre }})</h3>
+    <div style="overflow-x:auto; max-height:380px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Título</th><th>Autores</th><th>Editorial</th><th>Año</th><th>Rating</th><th>Votos</th></tr></thead>
+        <tbody>
+          {% for l in datos_ent.top_n_libros %}
+          <tr>
+            <td><strong>{{ l.titulo }}</strong></td>
+            <td>{{ l.autores }}</td>
+            <td>{{ l.editorial }}</td>
+            <td>{{ l.anio or '—' }}</td>
+            <td><strong>{{ l.rating_promedio }}</strong></td>
+            <td>{{ l.num_calificaciones }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="padding:16px; text-align:center; color:#6b7280;">Sin libros registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>c. Top 5 libros con mejor rating y Top 5 con peor rating por año (Títulos {{ orden_nombre }})</h3>
+    <h4 style="color:#1F4E79; margin:10px 0 6px;">Top 5 Mejor Rating por Año</h4>
+    <div style="overflow-x:auto; max-height:360px; margin-bottom:18px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Año</th><th>Título</th><th>Autores</th><th>Rating</th><th>Votos</th></tr></thead>
+        <tbody>
+          {% for l in datos_ent.top5_mejor_anio %}
+          <tr>
+            <td><strong>{{ l.anio }}</strong></td>
+            <td>{{ l.titulo }}</td>
+            <td>{{ l.autores }}</td>
+            <td><strong>{{ l.rating_promedio }}</strong></td>
+            <td>{{ l.num_calificaciones }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="padding:16px; text-align:center; color:#6b7280;">Sin libros con fecha de publicación registrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <h4 style="color:#b42318; margin:10px 0 6px;">Top 5 Peor Rating por Año</h4>
+    <div style="overflow-x:auto; max-height:360px;">
+      <table class="tabla-rep">
+        <thead><tr><th>Año</th><th>Título</th><th>Autores</th><th>Rating</th><th>Votos</th></tr></thead>
+        <tbody>
+          {% for l in datos_ent.top5_peor_anio %}
+          <tr>
+            <td><strong>{{ l.anio }}</strong></td>
+            <td>{{ l.titulo }}</td>
+            <td>{{ l.autores }}</td>
+            <td><strong>{{ l.rating_promedio }}</strong></td>
+            <td>{{ l.num_calificaciones }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="padding:16px; text-align:center; color:#6b7280;">Sin libros con fecha de publicación registrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>d. Listado y cantidad de películas con {{ datos_ent.num_generos }} género(s) (Títulos {{ orden_nombre }}) <span class="badge-total">Cantidad: {{ datos_ent.cantidad_n_generos }}</span></h3>
+    <div style="overflow-x:auto; max-height:380px;">
+      <table class="tabla-rep">
+        <thead><tr><th>ID</th><th>Título</th><th>Año</th><th>Géneros</th></tr></thead>
+        <tbody>
+          {% for p in datos_ent.peliculas_n_generos %}
+          <tr>
+            <td>{{ p.id_pelicula }}</td>
+            <td><strong>{{ p.titulo }}</strong></td>
+            <td>{{ p.anio or '—' }}</td>
+            <td>{{ p.generos }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" style="padding:16px; text-align:center; color:#6b7280;">No hay películas con exactamente {{ datos_ent.num_generos }} género(s).</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>e. Gráfico de frecuencia de películas por género</h3>
+    <div class="caja-graf">
+      <img src="data:image/png;base64,{{ datos_ent.graf_peliculas_genero }}" alt="Frecuencia de películas por género" style="max-width:100%; height:auto;">
+    </div>
+  </div>
+
+  <div class="seccion-nom">
+    <h3>f. Gráfico de frecuencia de libros por año de publicación ({{ datos_ent.f1 }} – {{ datos_ent.f2 }})</h3>
+    <div class="caja-graf">
+      <img src="data:image/png;base64,{{ datos_ent.graf_libros_anio }}" alt="Frecuencia de libros por año" style="max-width:100%; height:auto;">
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% else %}
 <div class="tarjeta centro" style="padding:48px 20px;">
